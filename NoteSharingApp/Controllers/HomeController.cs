@@ -1,16 +1,20 @@
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
 using NoteSharingApp.Models;
 
 namespace NoteSharingApp.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
 
-    public HomeController(ILogger<HomeController> logger)
+
+    private readonly DatabaseContext _dbContext;
+
+    public HomeController(DatabaseContext dbContext)
     {
-        _logger = logger;
+        _dbContext = dbContext;
     }
 
     public IActionResult Index()
@@ -21,6 +25,43 @@ public class HomeController : Controller
     public IActionResult Login()
     {
         return View();
+    }
+    [HttpGet]
+    public IActionResult Register()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Register(User user)
+    {
+        if(user == null)
+        {
+            return NotFound();
+        }
+
+        User _user = user;
+        _user.UserName = user.UserName;
+        _user.Email = user.Email;
+        _user.Password = user.Password;
+        _user.SchoolName = user.SchoolName;
+
+        if(ModelState.IsValid)
+        {
+            var registered = await _dbContext.Users.Find(x => x.Email == user.Email).FirstOrDefaultAsync();
+
+            if(registered != null)
+            {
+                ModelState.AddModelError("Email", "Bu e-posta adresi zaten kullanýlmaktadýr.");
+                return View(user);
+            }
+            else
+            {
+                await _dbContext.Users.InsertOneAsync(_user);
+                return RedirectToAction("Login");
+            }
+        }
+        return View(user);
     }
 
     public IActionResult Privacy()
