@@ -3,8 +3,9 @@ using Microsoft.Extensions.Configuration;
 using NoteSharingApp.Models;
 using Microsoft.EntityFrameworkCore;
 
-public class DatabaseContext:DbContext
+public class DatabaseContext
 {
+
     private readonly IMongoDatabase _database;
 
     public DatabaseContext(IConfiguration config)
