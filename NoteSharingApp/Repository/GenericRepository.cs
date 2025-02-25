@@ -1,45 +1,50 @@
-﻿using System;
+﻿using MongoDB.Driver;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-
+using System;
 
 public class GenericRepository<T> where T : class
 {
-    private readonly DatabaseContext _context;
-    private readonly DbSet<T> _dbSet;
+    private readonly IMongoCollection<T> _collection;
 
-    public GenericRepository(DatabaseContext context)
+    public GenericRepository(DatabaseContext context, string collectionName)
     {
-        _context = context;
-        _dbSet = context.Set<T>();
+        var property = context.GetType().GetProperty(collectionName);
+        if (property == null)
+        {
+            throw new ArgumentException($"'{collectionName}' adlı koleksiyon DatabaseContext içinde bulunamadı.");
+        }
+
+        _collection = property.GetValue(context) as IMongoCollection<T>;
+
+        if (_collection == null)
+        {
+            throw new ArgumentException($"'{collectionName}' koleksiyonu geçerli bir IMongoCollection<T> değil.");
+        }
     }
 
     public async Task AddAsync(T entity)
     {
-        await _dbSet.AddAsync(entity);
-        await _context.SaveChangesAsync();
-    }
-    public async Task RemoveAsync (T entity)
-    {
-         _dbSet.Remove(entity);
-        await _context.SaveChangesAsync();
-
-    }
-    public async Task UpdateAsync(T entity)
-    {
-        _dbSet.Update(entity);
-        await _context.SaveChangesAsync();
+        await _collection.InsertOneAsync(entity);
     }
 
-    public async Task<T> GetByIdAsync(int id)
+    public async Task RemoveAsync(FilterDefinition<T> filter)
     {
-        return await _dbSet.FindAsync(id);
+        await _collection.DeleteOneAsync(filter);
     }
 
     public async Task<List<T>> GetAllAsync()
     {
-        return await _dbSet.ToListAsync();
+        return await _collection.Find(_ => true).ToListAsync();
+    }
+
+    public async Task<T> GetByIdAsync(FilterDefinition<T> filter)
+    {
+        return await _collection.Find(filter).FirstOrDefaultAsync();
+    }
+
+    public async Task UpdateAsync(FilterDefinition<T> filter, UpdateDefinition<T> update)
+    {
+        await _collection.UpdateOneAsync(filter, update);
     }
 }

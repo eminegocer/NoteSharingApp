@@ -26,7 +26,12 @@ namespace NoteSharingApp.Models
 
         [BsonElement("Category")]
         [Required(ErrorMessage = "Kategori alanı zorunludur.")]
-        public Category Category { get; set; }
+        public string Category { get; set; }
+
+
+        [BsonElement("PdfFilePath")]
+
+        public string PdfFilePath { get; set; }
 
         [BsonRepresentation(BsonType.DateTime)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -5,11 +5,7 @@ namespace NoteSharingApp.Repository
 {
     public class NoteRepository : GenericRepository<Note>
     {
-        public NoteRepository(DatabaseContext context) : base(context)
-        {
-        }
-
+        public NoteRepository(DatabaseContext context)
+            : base(context, nameof(DatabaseContext.Notes)) { }
     }
-
-  
 }
