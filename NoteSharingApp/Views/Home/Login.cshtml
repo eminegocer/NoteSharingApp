@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@model User
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -45,6 +46,7 @@
         /* Login Kutusu */
         .login-box {
             background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
             padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -54,7 +56,7 @@
 
             /* Login Başlığı */
             .login-box h2 {
-                color: #2d7d32;
+                color: #9c7ed3; /* Lila tonunda renk */
                 margin-bottom: 20px;
             }
 
@@ -78,7 +80,7 @@
             .login-box button {
                 width: 100%;
                 padding: 10px;
-                background-color: #2d7d32;
+                background-color: #9c7ed3; /* Lila tonunda buton rengi */
                 color: white;
                 border: none;
                 border-radius: 5px;
@@ -87,7 +89,7 @@
             }
 
                 .login-box button:hover {
-                    background-color: #256629;
+                    background-color: #7e5ba6; /* Lila tonunun biraz koyusu */
                 }
 
             /* Kayıt Linki */
@@ -97,7 +99,7 @@
             }
 
             .login-box a {
-                color: #2d7d32;
+                color: #9c7ed3; /* Lila tonu */
                 text-decoration: none;
                 font-weight: bold;
             }
@@ -105,7 +107,6 @@
                 .login-box a:hover {
                     text-decoration: underline;
                 }
-
 
     </style>
 </head>
@@ -117,12 +118,14 @@
     <div class="login-container">
         <div class="login-box">
             <h2>Giriş Yap</h2>
-            <form method="post">
-                <label for="username">Kullanıcı Adı</label>
-                <input type="text" id="username" name="username" placeholder="Kullanıcı Adı" required>
+            <form asp-action="Login" method="post">
+                <label asp-for="UserName">Kullanıcı Adı</label>
+                <input asp-for="UserName" placeholder="Kullanıcı Adı" required>
+                <span asp-validation-for="UserName" class="text-danger"></span>
 
-                <label for="password">Şifre</label>
-                <input type="password" id="password" name="password" placeholder="Şifre" required>
+                <label asp-for="Password">Şifre</label>
+                <input asp-for="Password" type="password" placeholder="Şifre" required>
+                <span asp-validation-for="Password" class="text-danger"></span>
 
                 <button type="submit">Giriş Yap</button>
             </form>

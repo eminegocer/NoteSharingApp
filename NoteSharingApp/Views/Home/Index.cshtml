@@ -29,7 +29,6 @@
             background-position: center;
             background-repeat: no-repeat;
             z-index: -1;
-            filter: brightness(70%);
         }
 
         /* İçerik kutusu */
@@ -47,7 +46,7 @@
         .card-container {
             background: rgba(255, 255, 255, 0.1); /* Şeffaf beyaz kutu */
             backdrop-filter: blur(8px); /* Arka planı bulanıklaştır */
-            padding: 40px;
+            padding: 60px; /* Padding değerini artırdık */
             border-radius: 15px;
             box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
             color: white;
@@ -55,17 +54,12 @@
             margin: auto;
         }
 
-        h1 {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            color: #ffffff;
-        }
+            .card-container p {
+                margin-bottom: 15px; /* Yazılar arasına boşluk ekledik */
+                color: #9c7ed3;
+                
 
-        p {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 300;
-            color: #f8f9fa;
-        }
+            }
 
         .btn-custom {
             background-color: #ffcc00;
@@ -74,12 +68,15 @@
             padding: 12px 24px;
             border-radius: 25px;
             transition: all 0.3s ease-in-out;
+            margin-top: 30px; /* Butona üstten boşluk ekledik */
         }
 
             .btn-custom:hover {
                 background-color: #ff9900;
                 color: white;
             }
+
+
     </style>
 
 </head>
@@ -88,7 +85,7 @@
 
     <div class="content">
         <div class="card-container">
-            <h1> Note Sharing App'a Hoş Geldiniz </h1>
+            <h1 style="color:#9c7ed3;"> Note Sharing App'a Hoş Geldiniz </h1>
             <p>Notlarını diğer kişilerle kolayca paylaş ve değerli içerikleri keşfet.</p>
             <p>Notlara göz atın, katkıda bulunun ve bilginizi düzenleyin.</p>
             <p>Başlamak için butona tıklayın!</p>

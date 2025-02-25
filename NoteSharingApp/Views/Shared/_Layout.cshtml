@@ -1,51 +1,90 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - NoteSharingApp</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/NoteSharingApp.styles.css" asp-append-version="true" />
+    <title>Not Paylaşım Uygulaması</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome Icons (ikonlar için) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Scrollbar özelleştirmesi */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-secondary fixed-top shadow-sm">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                    <img src="~/img/note.png" alt="NoteSharingApp" width="40" height="40">
-                </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                       
-                        <li class="nav-item">
-                            <a class="nav-link text-light" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
+    <!--<!-- Navbar -->
+    <nav class="bg-white bg-opacity-20 shadow-sm h-16">
+        <!-- Yüksekliği artırdık (h-16) ve saydamlık ekledik -->
+        <div class="max-w-7xl mx-auto px-4 h-full">
+            <div class="flex justify-between items-center h-full">
+                <!-- Logo/Site Adı -->
+                <div class="flex items-center">
+                    <a href="/" class="text-blue-700 font-semibold text-lg">
+                        <img src="~/img/note.png" alt="Note Sharing App" class="w-8 h-8 inline-block ml-1"> <!-- Resmi sola kaydırdık -->
+                    </a>
+                </div>
+
+                <!-- Navigasyon Linkleri -->
+                <div class="flex items-center space-x-4">
+                    <a href="/Profile" class="text-gray-600 hover:text-blue-700 text-sm">Profil</a>
+                    <a asp-controller="Home" asp-action="Index" class=" btn bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors">
+                        Çıkış
+                    </a>
+
                 </div>
             </div>
-        </nav>
-    </header>
+        </div>
+    </nav>
 
-    <div class="container content">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
-    </div>
+    </nav>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2025 - NoteSharingApp - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
+    <!-- Ana İçerik -->
+    <main class="mt-2"> <!-- margin-top değerini azalttık -->
+        @RenderBody()
+    </main>
+
+    <footer class="bg-gradient-to-r from-purple-500 to-purple-300 text-white py-8">
+        <div class="container text-center">
+            <p class="text-lg font-semibold mb-4">&copy; 2025 - NoteSharingApp</p>
+            <p>
+                <a href="#" class="text-purple-100 hover:text-purple-200 transition-colors">Privacy</a> |
+                <a href="#" class="text-purple-100 hover:text-purple-200 transition-colors">Terms</a>
+            </p>
         </div>
     </footer>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Alpine.js (opsiyonel - interaktif özellikler için) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

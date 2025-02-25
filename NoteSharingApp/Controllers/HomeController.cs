@@ -26,6 +26,23 @@ public class HomeController : Controller
     {
         return View();
     }
+
+    [HttpPost]
+    public async Task<IActionResult> Login(User user)
+    {
+        if(user !=null)
+        {
+            var _user =await  _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
+
+            if(_user == null)
+            {
+                return NotFound();
+            }
+            return RedirectToAction("HomePage","Notes");
+        }
+        return View();
+    }
+
     [HttpGet]
     public IActionResult Register()
     {
