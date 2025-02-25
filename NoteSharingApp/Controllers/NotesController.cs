@@ -2,8 +2,11 @@
 
 namespace NoteSharingApp.Controllers
 {
-    public class NotesController
+    public class NotesController :Controller
     {
-       
+        public IActionResult HomePage()
+        {
+            return View();
+        }
     }
 }
