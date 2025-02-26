@@ -34,10 +34,12 @@ public class HomeController : Controller
         {
             var _user =await  _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
 
-            if(_user == null)
+            if (_user == null)
             {
-                return NotFound();
+                ModelState.AddModelError("", "Kullanýcý adý veya þifre hatalý.");
+                return View();
             }
+
             return RedirectToAction("HomePage","Notes");
         }
         return View();

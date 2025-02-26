@@ -11,20 +11,18 @@ builder.Services.Configure<DatabaseSettings>(
 
 builder.Services.AddSingleton<DatabaseContext>();
 
-// Authentication yapılandırması
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-})
-.AddCookie(options =>
-{
-    options.LoginPath = "/Account/Login";
-    options.LogoutPath = "/Account/Logout";
-    options.AccessDeniedPath = "/Account/AccessDenied";
-    options.ExpireTimeSpan = TimeSpan.FromDays(30);
-});
+// Authentication ayarları
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.LogoutPath = "/Account/Logout";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.Cookie.Name = "NoteSharingApp.Auth";
+        options.Cookie.HttpOnly = true;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+    });
 
 var app = builder.Build();
 
@@ -40,9 +38,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// Authentication ve Authorization middleware'lerinin sırası önemli
-app.UseAuthentication();
-app.UseAuthorization();
+// Bu iki middleware'in sırası önemli
+app.UseAuthentication();    // Önce authentication
+app.UseAuthorization();     // Sonra authorization
 
 app.MapControllerRoute(
     name: "default",
