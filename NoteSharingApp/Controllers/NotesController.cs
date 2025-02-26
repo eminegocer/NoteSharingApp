@@ -17,7 +17,8 @@ namespace NoteSharingApp.Controllers
 
         public IActionResult HomePage()
         {
-            return View();
+            var notes = _database.Notes.Find(x => true).ToList();
+            return View(notes);
         }
 
         public async Task<IActionResult> AddNote()
@@ -29,26 +30,68 @@ namespace NoteSharingApp.Controllers
 
 
         [HttpPost]
-        public IActionResult AddNote(Note note)
+        public async Task<IActionResult> AddNote(Note note, IFormFile PdfFile)
         {
-            if(note != null)
-            {
-                if(ModelState.IsValid)
-                {
-                    var _note = new Note();
-                    _note.Category = note.Category;
-                    _note.Content = note.Content;
-                    _note.CreatedAt = note.CreatedAt;
-                    _note.Owner = note.Owner;
-                    _note.Page = note.Page;
-                    _note.PdfFilePath = note.PdfFilePath;
-                    _note.Title = note.Title;
+            var categories = await _database.Categories.Find(_ => true).ToListAsync();
+            ViewBag.Categories = categories;
 
-                    _database.Notes.InsertOneAsync(_note);
-                }
+            // PDF dosyası kontrolü (formdan gelen dosya)
+            if (PdfFile == null || PdfFile.Length == 0)
+            {
+                ModelState.AddModelError("PdfFile", "Lütfen bir PDF dosyası seçin.");
                 return View(note);
             }
-            return View(note);
+
+            ModelState.Remove("PdfFilePath");
+
+            // Modelin kalan alanlarını doğrula
+            if (!ModelState.IsValid)
+            {
+                return View(note);
+            }
+
+            // Dosya yükleme işlemi
+            try
+            {
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(PdfFile.FileName);
+                var filePath = Path.Combine(uploadsFolder, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await PdfFile.CopyToAsync(stream);
+                }
+
+                // PDF yolunu modele ata
+                note.PdfFilePath = "/uploads/" + fileName;
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Dosya yüklenirken bir hata oluştu: " + ex.Message);
+                return View(note);
+            }
+
+            // Veritabanına kaydet
+            try
+            {
+                var notesCollection = _database.Notes;
+                await notesCollection.InsertOneAsync(note);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Veritabanına kaydedilirken bir hata oluştu: " + ex.Message);
+                return View(note);
+            }
+
+            return RedirectToAction("HomePage");
         }
+
+
+
     }
 }

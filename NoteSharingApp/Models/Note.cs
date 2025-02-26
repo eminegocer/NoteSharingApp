@@ -13,15 +13,15 @@ namespace NoteSharingApp.Models
         [BsonElement("Page")]
         public int Page { get; set; }
 
-        [BsonElement("Owner")]
-        public User Owner { get; set; }
+        //[BsonElement("Owner")]
+        //public User Owner { get; set; }
 
         [BsonElement("Title")]
         [Required(ErrorMessage = "Not başlığı zorunludur.")]
         public string Title { get; set; }
 
         [BsonElement("Content")]
-        [MinLength(75, ErrorMessage = "Not içeriği en az 75 karakter olmalıdır.")]
+        [MinLength(10, ErrorMessage = "Not içeriği en az 10 karakter olmalıdır.")]
         public string Content { get; set; }
 
         [BsonElement("Category")]
@@ -29,9 +29,10 @@ namespace NoteSharingApp.Models
         public string Category { get; set; }
 
 
+        [Required(ErrorMessage = "Lütfen bir PDF dosyası yükleyin.")]
         [BsonElement("PdfFilePath")]
-
         public string PdfFilePath { get; set; }
+
 
         [BsonRepresentation(BsonType.DateTime)]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
