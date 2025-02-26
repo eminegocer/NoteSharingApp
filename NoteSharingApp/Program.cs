@@ -14,7 +14,6 @@ var connectionString = builder.Configuration.GetConnectionString("MongoDb");
 // MongoDB için baðýmlýlýðý ekle
 builder.Services.AddSingleton<DatabaseContext>();
 
-builder.Services.AddScoped<CategoryRepository>();
 
 
 var app = builder.Build();
