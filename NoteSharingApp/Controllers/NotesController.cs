@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
 using NoteSharingApp.Repository;
@@ -18,7 +17,10 @@ namespace NoteSharingApp.Controllers
 
         public IActionResult HomePage()
         {
-            var notes = _database.Notes.Find(x => true).ToList();
+            var notes = _database.Notes
+                .Find(x => true)
+                .SortByDescending(x => x.CreatedAt)
+                .ToList();
             return View(notes);
         }
 
@@ -35,55 +37,63 @@ namespace NoteSharingApp.Controllers
         [HttpPost]
         public async Task<IActionResult> AddNote(Note note, IFormFile PdfFile)
         {
-            // Kategorileri her durumda yükle
             var categories = await _database.Categories.Find(_ => true).ToListAsync();
             ViewBag.Categories = categories;
 
-            // Giriş yapmış kullanıcının adını al
-            note.User = User.Identity.Name;
-
-            // PDF dosyası kontrolü
+            // PDF dosyası kontrolü (formdan gelen dosya)
             if (PdfFile == null || PdfFile.Length == 0)
             {
-                ModelState.AddModelError("PdfFile", "PDF dosyası yüklemek zorunludur.");
+                ModelState.AddModelError("PdfFile", "Lütfen bir PDF dosyası seçin.");
                 return View(note);
             }
 
+            ModelState.Remove("PdfFilePath");
+
+            // Modelin kalan alanlarını doğrula
+            if (!ModelState.IsValid)
+            {
+                return View(note);
+            }
+
+            // Dosya yükleme işlemi
             try
             {
-                string uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-                
-                // Uploads klasörünü oluştur
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/uploads");
                 if (!Directory.Exists(uploadsFolder))
                 {
                     Directory.CreateDirectory(uploadsFolder);
                 }
 
-                // Benzersiz dosya adı oluştur
-                string uniqueFileName = $"{Guid.NewGuid()}_{PdfFile.FileName}";
-                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(PdfFile.FileName);
+                var filePath = Path.Combine(uploadsFolder, fileName);
 
-                // Dosyayı kaydet
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                using (var stream = new FileStream(filePath, FileMode.Create))
                 {
-                    await PdfFile.CopyToAsync(fileStream);
+                    await PdfFile.CopyToAsync(stream);
                 }
 
-                // Veritabanında saklanacak URL yolunu ayarla
-                note.PdfFilePath = $"/uploads/{uniqueFileName}";
-                note.CreatedAt = DateTime.UtcNow;
-
-                // Notu veritabanına kaydet
-                await _database.Notes.InsertOneAsync(note);
-
-                TempData["SuccessMessage"] = "Not başarıyla kaydedildi!";
-                return RedirectToAction("HomePage");
+                // PDF yolunu modele ata
+                note.PdfFilePath = "/uploads/" + fileName;
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", "Not kaydedilirken bir hata oluştu: " + ex.Message);
+                ModelState.AddModelError("", "Dosya yüklenirken bir hata oluştu: " + ex.Message);
                 return View(note);
             }
+
+            // Veritabanına kaydet
+            try
+            {
+                var notesCollection = _database.Notes;
+                await notesCollection.InsertOneAsync(note);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "Veritabanına kaydedilirken bir hata oluştu: " + ex.Message);
+                return View(note);
+            }
+
+            return RedirectToAction("HomePage");
         }
 
 
