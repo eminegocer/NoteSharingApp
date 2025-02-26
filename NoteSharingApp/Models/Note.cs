@@ -13,8 +13,9 @@ namespace NoteSharingApp.Models
         [BsonElement("Page")]
         public int Page { get; set; }
 
-        //[BsonElement("Owner")]
-        //public User Owner { get; set; }
+        [BsonElement("User")]
+        public string User { get; set; }
+
 
         [BsonElement("Title")]
         [Required(ErrorMessage = "Not başlığı zorunludur.")]
