@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
 using NoteSharingApp.Repository;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace NoteSharingApp.Controllers
@@ -15,8 +17,9 @@ namespace NoteSharingApp.Controllers
             _database = database;
         }
 
-        public IActionResult HomePage()
+        public async Task<IActionResult> HomePage()
         {
+
             var notes = _database.Notes
                 .Find(x => true)
                 .SortByDescending(x => x.CreatedAt)
@@ -26,10 +29,13 @@ namespace NoteSharingApp.Controllers
 
         public async Task<IActionResult> AddNote()
         {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Account");
+            }
             ViewBag.UserName = User.Identity.Name;
-
             var categories = await _database.Categories.Find(_ => true).ToListAsync();
-            ViewBag.Categories = categories; 
+            ViewBag.Categories = categories;
             return View();
         }
 
@@ -81,6 +87,33 @@ namespace NoteSharingApp.Controllers
                 return View(note);
             }
 
+            // Kullanıcının kimliğini al
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                ModelState.AddModelError("", "Kullanıcı kimliği alınamadı.");
+                return View(note);
+            }
+            // String userId'yi ObjectId'ye çevir
+            if (!ObjectId.TryParse(userId, out var parsedOwnerId))
+            {
+                ModelState.AddModelError("", "Geçersiz kullanıcı kimliği.");
+                return View(note);
+            }
+
+            // MongoDB'den kullanıcıyı bul
+            var user = await _database.Users.Find(u => u.UserId == parsedOwnerId).FirstOrDefaultAsync();
+            if (user == null)
+            {
+                ModelState.AddModelError("", "Kullanıcı bulunamadı.");
+                return View(note);
+            }
+
+            // Kullanıcı bilgilerini not nesnesine ekle
+            note.OwnerId = parsedOwnerId;
+            note.OwnerUsername = user.UserName; // Artık sorunsuz şekilde alınır
+
             // Veritabanına kaydet
             try
             {
@@ -96,7 +129,55 @@ namespace NoteSharingApp.Controllers
             return RedirectToAction("HomePage");
         }
 
+        [HttpGet]
+        public async Task<IActionResult> SearchUsers(string searchTerm)
+        {
+            if (string.IsNullOrEmpty(searchTerm))
+                return Json(new List<string>());
 
+            var users = await _database.Users
+                .Find(u => u.UserName.ToLower().Contains(searchTerm.ToLower()))
+                .Project(u => u.UserName)
+                .Limit(5)
+                .ToListAsync();
 
+            return Json(users);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> StartPersonalChat([FromBody] StartChatRequest request)
+        {
+            if (string.IsNullOrEmpty(request.Username))
+            {
+                return Json(new { success = false, message = "Kullanıcı adı boş olamaz." });
+            }
+
+            // Kullanıcı kontrolü
+            var targetUser = await _database.Users
+                .Find(u => u.UserName == request.Username)
+                .FirstOrDefaultAsync();
+
+            if (targetUser == null)
+            {
+                return Json(new { success = false, message = "Bu kullanıcı adında bir kayıt bulunamadı." });
+            }
+
+            return Json(new { 
+                success = true, 
+                targetUserId = targetUser.UserId,
+                targetUsername = targetUser.UserName
+            });
+        }
+
+        public class StartChatRequest
+        {
+            public string Username { get; set; }
+        }
+
+        public IActionResult ChatView(string targetUsername)
+        {
+            ViewBag.TargetUsername = targetUsername;
+            return PartialView("_ChatPartial");
+        }
     }
 }

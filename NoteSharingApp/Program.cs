@@ -17,6 +17,16 @@ builder.Services.AddSingleton<DatabaseContext>();
 builder.Services.AddScoped<CategoryRepository>();
 
 
+builder.Services.AddAuthentication("Cookies")
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";  // Kullanýcý giriþ sayfasý
+        options.LogoutPath = "/Account/Logout";
+    });
+
+builder.Services.AddAuthorization();
+
+
 var app = builder.Build();
 
 
@@ -28,11 +38,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(

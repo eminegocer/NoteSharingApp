@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
@@ -30,9 +32,10 @@ public class HomeController : Controller
     [HttpPost]
     public async Task<IActionResult> Login(User user)
     {
-        if(user !=null)
+        if (user != null)
         {
-            var _user =await  _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
+            // Veritabanýndan kullanýcýyý bul
+            var _user = await _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
 
             if (_user == null)
             {
@@ -40,11 +43,27 @@ public class HomeController : Controller
                 return View();
             }
 
-            return RedirectToAction("HomePage","Notes");
+            // Claims oluþtururken veritabanýndan gelen _user nesnesini kullan
+            var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, _user.UserId.ToString()), // Veritabanýndan gelen UserId
+            new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanýcý") // Veritabanýndan gelen UserName
+        };
+
+            var identity = new ClaimsIdentity(claims, "Cookies");
+            var principal = new ClaimsPrincipal(identity);
+
+            // Kullanýcýyý oturum açmýþ olarak iþaretle
+            await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
+            {
+                IsPersistent = true, // Cookie kalýcý olsun mu? (Tarayýcý kapandýðýnda silinmez)
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7) // 7 gün geçerli
+            });
+
+            return RedirectToAction("HomePage", "Notes");
         }
         return View();
     }
-
     [HttpGet]
     public IActionResult Register()
     {
