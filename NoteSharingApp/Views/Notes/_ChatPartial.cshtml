@@ -1,0 +1,133 @@
+<div class="flex flex-col h-[calc(100vh-8rem)]">
+    <!-- Sohbet Başlığı -->
+    <div class="bg-white border-b p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-user-circle text-2xl text-purple-500"></i>
+            <div>
+                <h3 class="font-semibold text-gray-800">@ViewBag.TargetUsername</h3>
+                <p class="text-xs text-gray-500">Çevrimiçi</p>
+            </div>
+        </div>
+        <button onclick="returnToNotes()" class="text-gray-500 hover:text-purple-500 transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Mesaj Alanı -->
+    <div id="messageArea" class="flex-1 bg-gray-50 p-4 overflow-y-auto">
+        <div id="messages" class="space-y-4">
+            <!-- Mesajlar buraya dinamik olarak eklenecek -->
+        </div>
+    </div>
+
+    <!-- Mesaj Yazma Alanı -->
+    <div class="bg-white border-t p-4">
+        <div class="flex gap-2">
+            <input type="text" 
+                   id="messageInput"
+                   class="flex-1 border rounded-full px-4 py-2 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
+                   placeholder="Mesajınızı yazın..."
+                   onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()" 
+                    class="bg-purple-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-purple-600 transition-colors">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Chat view loaded");
+    console.log("Current username:", '@User.Identity.Name');
+    console.log("Target username:", '@ViewBag.TargetUsername');
+
+    let connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chatHub")
+        .withAutomaticReconnect()
+        .configureLogging(signalR.LogLevel.Debug)
+        .build();
+
+    const currentUsername = '@User.Identity.Name';
+    const targetUsername = '@ViewBag.TargetUsername';
+    const messageInput = document.getElementById("messageInput");
+    const messagesDiv = document.getElementById("messages");
+
+    connection.on("ReceiveMessage", (senderUsername, message) => {
+        console.log("Message received from", senderUsername + ":", message);
+        
+        const messageDiv = document.createElement("div");
+        const isCurrentUser = senderUsername === currentUsername;
+        
+        messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+        messageDiv.innerHTML = `
+            <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
+                <p class="break-words">${message}</p>
+                <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
+                    ${new Date().toLocaleTimeString()}
+                </span>
+            </div>
+        `;
+        
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+
+    async function startConnection() {
+        try {
+            await connection.start();
+            console.log("SignalR Connected successfully");
+            await connection.invoke("JoinChat", currentUsername);
+            console.log("Joined chat successfully");
+        } catch (err) {
+            console.error("SignalR Connection Error:", err);
+            setTimeout(startConnection, 5000);
+        }
+    }
+
+    startConnection();
+
+    // Global scope'a taşıyalım
+    window.sendMessage = async function() {
+        const message = messageInput.value.trim();
+        console.log("Attempting to send message:", message);
+        console.log("To user:", targetUsername);
+        
+        if (message) {
+            try {
+                console.log("Connection state:", connection.state);
+                if (connection.state === "Connected") {
+                    await connection.invoke("SendMessage", currentUsername, targetUsername, message);
+                    console.log("Message sent successfully");
+                    messageInput.value = '';
+                } else {
+                    console.log("Connection not ready. Current state:", connection.state);
+                    alert("Bağlantı kurulamadı. Lütfen sayfayı yenileyin.");
+                }
+            } catch (err) {
+                console.error("Error sending message:", err);
+                alert("Mesaj gönderilemedi: " + err.message);
+            }
+        }
+    };
+
+    window.handleKeyPress = function(event) {
+        if (event.key === "Enter") {
+            sendMessage();
+        }
+    };
+
+    window.returnToNotes = function() {
+        const mainContent = document.getElementById('mainContent');
+        const chatContent = document.getElementById('chatContent');
+        
+        chatContent.classList.add('hidden');
+        mainContent.classList.remove('hidden');
+    };
+
+    // Input ve button event listener'ları
+    messageInput.addEventListener('keypress', handleKeyPress);
+    document.querySelector('button[onclick="sendMessage()"]').addEventListener('click', sendMessage);
+});
+</script> 

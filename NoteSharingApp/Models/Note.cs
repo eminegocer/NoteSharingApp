@@ -13,8 +13,12 @@ namespace NoteSharingApp.Models
         [BsonElement("Page")]
         public int Page { get; set; }
 
-        [BsonElement("User")]
-        public string User { get; set; }
+
+        [BsonRepresentation(BsonType.ObjectId)]
+        public ObjectId OwnerId { get; set; }  // Kullanıcının ObjectId'si
+
+        [BsonElement("OwnerUsername")]
+        public string OwnerUsername { get; set; }  //
 
 
         [BsonElement("Title")]

@@ -34,88 +34,100 @@
         </div>
     </aside>
 
-    <!-- Orta Panel: Son Eklenen Notlar (1/2) -->
+    <!-- Orta Panel -->
     <main class="w-1/2 p-6 m-2 bg-white shadow-lg rounded-lg overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h1 class="text-2xl font-bold text-purple-500">Son Eklenen Notlar</h1>
-                <p class="text-sm text-gray-600/70 mt-1">Paylaşılan en güncel notlar</p>
-            </div>
-            <a asp-controller="Notes" 
-               asp-action="AddNote" 
-               class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                <i class="fas fa-plus text-sm"></i>
-                <span>Yeni Not</span>
-            </a>
-        </div>
-
-        <div class="space-y-4">
-            @if (Model == null || !Model.Any())
-            {
-                <div class="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                    <i class="fas fa-notebook mb-3 text-3xl text-gray-400"></i>
-                    <p class="text-gray-600 text-center">Henüz paylaşılmış not bulunmuyor.</p>
-                    <p class="text-gray-400 text-sm mt-1">İlk notu siz paylaşın!</p>
+        <!-- Ana sayfa içeriği (notlar) -->
+        <div id="mainContent">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-purple-500">Son Eklenen Notlar</h1>
+                    <p class="text-sm text-gray-600/70 mt-1">Paylaşılan en güncel notlar</p>
                 </div>
-            }
-            else
-            {
-                @foreach (var note in Model)
-                {
-                    <div class="group bg-blue-50 hover:bg-white rounded-xl p-6 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg">
-                        <div class="flex items-start justify-between mb-3">
-                            <div class="flex-1">
-                                <h3 class="text-lg font-semibold text-gray-800 group-hover:text-gray-900">@note.Title</h3>
-                                <div class="flex items-center gap-3 mt-2">
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
-                                        <i class="fas fa-book-open mr-1"></i>
-                                        Sayfa: @note.Page
-                                    </span>
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
-                                        <i class="fas fa-folder mr-1"></i>
-                                        @note.Category
-                                    </span>
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
-                                        <i class="fas fa-clock mr-1"></i>
-                                        @note.CreatedAt.ToString("dd.MM.yyyy HH:mm")
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="@note.PdfFilePath" target="_blank" 
-                                   class="p-2 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <i class="fas fa-file-pdf"></i>
-                                </a>
-                                <button class="p-2 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <p class="text-gray-600 mb-3 line-clamp-2 group-hover:line-clamp-none transition-all duration-300">
-                            @note.Content
-                        </p>
+                <a asp-controller="Notes" 
+                   asp-action="AddNote" 
+                   class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                    <i class="fas fa-plus text-sm"></i>
+                    <span>Yeni Not</span>
+                </a>
+            </div>
 
-                        <div class="mt-4 pt-4 border-t border-gray-100">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center space-x-2">
-                                    <button class="text-gray-500 hover:text-purple-600 text-sm flex items-center gap-1">
-                                        <i class="fas fa-share-alt"></i>
-                                        <span>Paylaş</span>
-                                    </button>
-                                </div>
-                                <button class="text-gray-500 hover:text-purple-600 text-sm flex items-center gap-1">
-                                    <i class="fas fa-download"></i>
-                                    <span>PDF İndir</span>
-                                </button>
-                            </div>
-                        </div>
+            <div class="space-y-4">
+                @if (Model == null || !Model.Any())
+                {
+                    <div class="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                        <i class="fas fa-notebook mb-3 text-3xl text-gray-400"></i>
+                        <p class="text-gray-600 text-center">Henüz paylaşılmış not bulunmuyor.</p>
+                        <p class="text-gray-400 text-sm mt-1">İlk notu siz paylaşın!</p>
                     </div>
                 }
-            }
+                else
+                {
+                    @foreach (var note in Model)
+                    {
+                        <div class="group bg-blue-50 hover:bg-white rounded-xl p-6 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-semibold text-gray-800 group-hover:text-gray-900">@note.Title</h3>
+                                    <div class="flex items-center gap-3 mt-2">
+                                        <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
+                                            <i class="fas fa-book-open mr-1"></i>
+                                            Sayfa: @note.Page
+                                        </span>
+                                        <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
+                                            <i class="fas fa-user mr-1"></i>
+                                            @note.OwnerUsername
+                                        </span>
+                                        <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
+                                            <i class="fas fa-folder mr-1"></i>
+                                            @note.Category
+                                        </span>
+                                        <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs">
+                                            <i class="fas fa-clock mr-1"></i>
+                                            @note.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <a href="@note.PdfFilePath" target="_blank" 
+                                       class="p-2 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-colors">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    <button class="p-2 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-lg transition-colors">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-lg transition-colors">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <p class="text-gray-600 mb-3 line-clamp-2 group-hover:line-clamp-none transition-all duration-300">
+                                @note.Content
+                            </p>
+
+                            <div class="mt-4 pt-4 border-t border-gray-100">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <button class="text-gray-500 hover:text-purple-600 text-sm flex items-center gap-1">
+                                            <i class="fas fa-share-alt"></i>
+                                            <span>Paylaş</span>
+                                        </button>
+                                    </div>
+                                    <button class="text-gray-500 hover:text-purple-600 text-sm flex items-center gap-1">
+                                        <i class="fas fa-download"></i>
+                                        <span>PDF İndir</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Sohbet içeriği (başlangıçta gizli) -->
+        <div id="chatContent" class="hidden h-full">
+            <!-- Sohbet içeriği buraya yüklenecek -->
         </div>
     </main>
 
@@ -123,18 +135,157 @@
     <aside class="w-1/4 bg-white shadow-lg p-4 m-2 rounded-lg">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold text-purple-400">Yeni Sohbet</h2>
-            <i class="fas fa-user-plus text-purple-400"></i>
+            <i class="fas fa-comments text-purple-400"></i>
         </div>
-        <div class="space-y-4">
-            <input type="text" 
-                   class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none" 
-                   placeholder="Kullanıcı adı girin...">
-            <button class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                <i class="fas fa-paper-plane"></i>
-                Sohbet Başlat
-            </button>
+        
+        <!-- Kişisel Sohbet -->
+        <div class="space-y-3 mb-6">
+            <h3 class="text-sm font-semibold text-gray-700">Kişisel Sohbet</h3>
+            <div class="space-y-3">
+                <div class="relative">
+                    <input type="text" 
+                           id="userSearchInput"
+                           class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none" 
+                           placeholder="Kullanıcı adı girin...">
+                    <div id="userSuggestions" 
+                         class="absolute w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg hidden">
+                    </div>
+                </div>
+                <button onclick="startPersonalChat()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Kişisel Sohbet Başlat</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Grup Oluştur -->
+        <div class="space-y-3 mb-6">
+            <h3 class="text-sm font-semibold text-gray-700">Yeni Grup</h3>
+            <div class="space-y-3">
+                <input type="text" 
+                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none" 
+                       placeholder="Grup adı girin...">
+                <button class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-users"></i>
+                    <span>Grup Oluştur</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Okul Grubu Ara -->
+        <div class="space-y-3">
+            <h3 class="text-sm font-semibold text-gray-700">Okul Grubu Bul</h3>
+            <div class="space-y-3">
+                <div class="relative">
+                    <input type="text" 
+                           class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none" 
+                           placeholder="Grup adı veya bölüm ara...">
+                    <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                </div>
+                <button class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-school"></i>
+                    <span>Okul Grubu Ara</span>
+                </button>
+            </div>
         </div>
     </aside>
 </div>
+
+<script>
+let typingTimer;
+const doneTypingInterval = 300; // 300 ms bekle
+
+document.getElementById('userSearchInput').addEventListener('input', function() {
+    clearTimeout(typingTimer);
+    const searchTerm = this.value.trim();
+    
+    if (searchTerm.length < 2) {
+        document.getElementById('userSuggestions').classList.add('hidden');
+        return;
+    }
+
+    typingTimer = setTimeout(() => {
+        searchUsers(searchTerm);
+    }, doneTypingInterval);
+});
+
+function searchUsers(searchTerm) {
+    fetch(`/Notes/SearchUsers?searchTerm=${encodeURIComponent(searchTerm)}`)
+        .then(response => response.json())
+        .then(users => {
+            const suggestionsDiv = document.getElementById('userSuggestions');
+            suggestionsDiv.innerHTML = '';
+
+            if (users.length > 0) {
+                users.forEach(username => {
+                    const suggestion = document.createElement('div');
+                    suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
+                    suggestion.innerHTML = `
+                        <i class="fas fa-user text-gray-400 text-xs"></i>
+                        <span>${username}</span>
+                    `;
+                    suggestion.onclick = () => {
+                        document.getElementById('userSearchInput').value = username;
+                        suggestionsDiv.classList.add('hidden');
+                    };
+                    suggestionsDiv.appendChild(suggestion);
+                });
+                suggestionsDiv.classList.remove('hidden');
+            } else {
+                suggestionsDiv.classList.add('hidden');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Sayfa herhangi bir yerine tıklandığında önerileri gizle
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#userSearchInput')) {
+        document.getElementById('userSuggestions').classList.add('hidden');
+    }
+});
+
+function startPersonalChat() {
+    const username = document.getElementById('userSearchInput').value.trim();
+    if (!username) {
+        alert('Lütfen bir kullanıcı adı girin.');
+        return;
+    }
+
+    fetch('/Notes/StartPersonalChat', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message);
+            return;
+        }
+
+        // Sohbet başarıyla başlatıldı, orta paneli güncelle
+        fetch(`/Notes/ChatView?targetUsername=${encodeURIComponent(data.targetUsername)}`)
+            .then(response => response.text())
+            .then(html => {
+                const mainContent = document.getElementById('mainContent');
+                const chatContent = document.getElementById('chatContent');
+                
+                // Ana içeriği gizle
+                mainContent.classList.add('hidden');
+                
+                // Sohbet içeriğini göster
+                chatContent.innerHTML = html;
+                chatContent.classList.remove('hidden');
+            });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+    });
+}
+</script>
 
 
