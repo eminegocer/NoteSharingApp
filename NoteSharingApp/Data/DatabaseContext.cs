@@ -1,11 +1,10 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using Microsoft.Extensions.Configuration;
 using NoteSharingApp.Models;
 using Microsoft.EntityFrameworkCore;
 
 public class DatabaseContext
 {
-
     private readonly IMongoDatabase _database;
 
     public DatabaseContext(IConfiguration config)
@@ -17,4 +16,7 @@ public class DatabaseContext
     public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
     public IMongoCollection<Category> Categories => _database.GetCollection<Category>("Categories");
     public IMongoCollection<Note> Notes => _database.GetCollection<Note>("Notes");
+    public IMongoCollection<SchoolGroup> SchoolGroups => _database.GetCollection<SchoolGroup>("SchoolGroups");
+
+    public IMongoCollection<Chat> Chats => _database.GetCollection<Chat>("Chats");
 }

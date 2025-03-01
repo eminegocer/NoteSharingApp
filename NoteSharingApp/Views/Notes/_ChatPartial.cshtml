@@ -1,3 +1,7 @@
+@{
+    var currentUsername = User.Identity.Name;
+}
+
 <div class="flex flex-col h-[calc(100vh-8rem)]">
     <!-- Sohbet Başlığı -->
     <div class="bg-white border-b p-4 flex items-center justify-between">
@@ -16,7 +20,21 @@
     <!-- Mesaj Alanı -->
     <div id="messageArea" class="flex-1 bg-gray-50 p-4 overflow-y-auto">
         <div id="messages" class="space-y-4">
-            <!-- Mesajlar buraya dinamik olarak eklenecek -->
+            @if (ViewBag.ChatHistory != null)
+            {
+                foreach (var message in ViewBag.ChatHistory)
+                {
+                    var isCurrentUser = message.SenderUsername == currentUsername;
+                    <div class="flex @(isCurrentUser ? "justify-end" : "justify-start") mb-4">
+                        <div class="@(isCurrentUser ? "bg-purple-500 text-white" : "bg-white text-gray-800") rounded-lg p-3 max-w-[70%] shadow-sm">
+                            <p class="break-words">@message.Message</p>
+                            <span class="text-xs @(isCurrentUser ? "text-purple-100" : "text-gray-500") block mt-1">
+                                @message.Timestamp.ToLocalTime().ToString("HH:mm")
+                            </span>
+                        </div>
+                    </div>
+                }
+            }
         </div>
     </div>
 
@@ -54,6 +72,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const messageInput = document.getElementById("messageInput");
     const messagesDiv = document.getElementById("messages");
 
+    // Scroll to bottom after loading chat history
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
     connection.on("ReceiveMessage", (senderUsername, message) => {
         console.log("Message received from", senderUsername + ":", message);
         
@@ -88,7 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     startConnection();
 
-    // Global scope'a taşıyalım
     window.sendMessage = async function() {
         const message = messageInput.value.trim();
         console.log("Attempting to send message:", message);
@@ -126,8 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mainContent.classList.remove('hidden');
     };
 
-    // Input ve button event listener'ları
     messageInput.addEventListener('keypress', handleKeyPress);
     document.querySelector('button[onclick="sendMessage()"]').addEventListener('click', sendMessage);
 });
-</script> 
+</script>

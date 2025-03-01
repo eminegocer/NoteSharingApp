@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
@@ -11,19 +11,34 @@ namespace NoteSharingApp.Controllers
     public class NotesController : Controller
     {
         private readonly DatabaseContext _database;
+        private readonly IMongoCollection<SchoolGroup> _schoolGroups;
 
-        public NotesController( DatabaseContext database)
+        public NotesController(DatabaseContext database)
         {
             _database = database;
         }
 
         public async Task<IActionResult> HomePage()
         {
-
+            var currentUsername = User.Identity.Name;
             var notes = _database.Notes
                 .Find(x => true)
                 .SortByDescending(x => x.CreatedAt)
                 .ToList();
+
+            // Get user's chat list
+            var chatList = await _database.Chats
+                .Find(c => c.SenderUsername == currentUsername || c.ReceiverUsername == currentUsername)
+                .SortByDescending(c => c.Timestamp)
+                .ToListAsync();
+
+            // Get unique usernames from chats
+            var uniqueChats = chatList
+                .Select(c => c.SenderUsername == currentUsername ? c.ReceiverUsername : c.SenderUsername)
+                .Distinct()
+                .ToList();
+
+            ViewBag.ChatUsers = uniqueChats;
             return View(notes);
         }
 
@@ -174,10 +189,36 @@ namespace NoteSharingApp.Controllers
             public string Username { get; set; }
         }
 
-        public IActionResult ChatView(string targetUsername)
+        public async Task<IActionResult> ChatView(string targetUsername)
         {
+            var currentUsername = User.Identity.Name;
+            
+            // Get chat history
+            var chatHistory = await _database.Chats
+                .Find(c => 
+                    (c.SenderUsername == currentUsername && c.ReceiverUsername == targetUsername) ||
+                    (c.SenderUsername == targetUsername && c.ReceiverUsername == currentUsername))
+                .SortBy(c => c.Timestamp)
+                .ToListAsync();
+
             ViewBag.TargetUsername = targetUsername;
+            ViewBag.ChatHistory = chatHistory;
             return PartialView("_ChatPartial");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> SearchSchoolGroups(string searchTerm)
+        {
+            if (string.IsNullOrEmpty(searchTerm))
+                return Json(new List<string>());
+
+            var schoolGroups = await _database.SchoolGroups
+                .Find(g => g.GroupName.ToLower().Contains(searchTerm.ToLower()))
+                .Project(g => g.GroupName)
+                .Limit(5)
+                .ToListAsync();
+
+            return Json(schoolGroups);
         }
     }
 }
