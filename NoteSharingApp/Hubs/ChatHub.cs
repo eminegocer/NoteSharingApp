@@ -1,10 +1,19 @@
 using Microsoft.AspNetCore.SignalR;
+using NoteSharingApp.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace NoteSharingApp.Hubs
 {
     public class ChatHub : Hub
     {
         private static Dictionary<string, string> UserConnections = new Dictionary<string, string>();
+        private readonly DatabaseContext _database;
+
+        public ChatHub(DatabaseContext database)
+        {
+            _database = database;
+        }
 
         public async Task JoinChat(string username)
         {
@@ -18,10 +27,20 @@ namespace NoteSharingApp.Hubs
             {
                 System.Diagnostics.Debug.WriteLine($"Sending message from {senderUsername} to {receiverUsername}: {message}");
                 
-                // Göndericiye kendi mesajını gönder
+                // Save message to database
+                var chat = new Chat
+                {
+                    SenderUsername = senderUsername,
+                    ReceiverUsername = receiverUsername,
+                    Message = message,
+                    Timestamp = DateTime.UtcNow
+                };
+                await _database.Chats.InsertOneAsync(chat);
+
+                // Send message to sender
                 await Clients.Caller.SendAsync("ReceiveMessage", senderUsername, message);
 
-                // Alıcıya mesajı gönder
+                // Send message to receiver
                 if (UserConnections.TryGetValue(receiverUsername, out string receiverConnectionId))
                 {
                     await Clients.Client(receiverConnectionId).SendAsync("ReceiveMessage", senderUsername, message);
@@ -49,4 +68,4 @@ namespace NoteSharingApp.Hubs
             return base.OnDisconnectedAsync(exception);
         }
     }
-} 
+}

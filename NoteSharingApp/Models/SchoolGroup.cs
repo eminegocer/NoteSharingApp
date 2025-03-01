@@ -1,0 +1,25 @@
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using System;
+
+namespace NoteSharingApp.Models
+{
+    public class SchoolGroup
+    {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public ObjectId Id { get; set; }
+
+        [BsonElement("GroupName")]
+        public string GroupName { get; set; }
+
+        [BsonElement("SchoolName")]
+        public string  SchoolName { get; set; }
+
+        [BsonElement("Description")]
+        public string Description { get; set; }
+
+        [BsonElement("CreatedAt")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+} 
