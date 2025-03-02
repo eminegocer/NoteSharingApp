@@ -26,13 +26,13 @@ namespace NoteSharingApp.Hubs
             try 
             {
                 System.Diagnostics.Debug.WriteLine($"Sending message from {senderUsername} to {receiverUsername}: {message}");
-                
+
                 // Save message to database
                 var chat = new Chat
                 {
                     SenderUsername = senderUsername,
                     ReceiverUsername = receiverUsername,
-                    Messages = message,
+                    Messages = new List<Message>(),
                     CreatedAt = DateTime.UtcNow
                 };
                 await _database.Chats.InsertOneAsync(chat);
