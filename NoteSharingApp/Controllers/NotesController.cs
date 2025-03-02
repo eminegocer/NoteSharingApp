@@ -29,7 +29,7 @@ namespace NoteSharingApp.Controllers
             // Get user's chat list
             var chatList = await _database.Chats
                 .Find(c => c.SenderUsername == currentUsername || c.ReceiverUsername == currentUsername)
-                .SortByDescending(c => c.Timestamp)
+                .SortByDescending(c => c.CreatedAt)
                 .ToListAsync();
 
             // Get unique usernames from chats
@@ -69,6 +69,7 @@ namespace NoteSharingApp.Controllers
             }
 
             ModelState.Remove("PdfFilePath");
+            ModelState.Remove("OwnerUsername"); // Formdan gelmediği için doğrulamada hata oluşmasını engeller.
 
             // Modelin kalan alanlarını doğrula
             if (!ModelState.IsValid)
@@ -127,7 +128,7 @@ namespace NoteSharingApp.Controllers
 
             // Kullanıcı bilgilerini not nesnesine ekle
             note.OwnerId = parsedOwnerId;
-            note.OwnerUsername = user.UserName; // Artık sorunsuz şekilde alınır
+            note.OwnerUsername = user.UserName;          // Artık sorunsuz şekilde alınır
 
             // Veritabanına kaydet
             try
@@ -142,6 +143,63 @@ namespace NoteSharingApp.Controllers
             }
 
             return RedirectToAction("HomePage");
+        }
+
+        [HttpPost]
+        public IActionResult AddChatDb(string userName)
+        {
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // String userId'yi ObjectId'ye çevir
+            if (!ObjectId.TryParse(userId, out var parsedOwnerId))
+            {
+                ModelState.AddModelError("", "Geçersiz kullanıcı kimliği.");
+                return View();
+              
+            }
+
+            // MongoDB'den kullanıcıyı bul
+            User user2 =  _database.Users.Find(u => u.UserId == parsedOwnerId).FirstOrDefault();
+            if (user2 == null)
+            {
+                ModelState.AddModelError("", "Kullanıcı bulunamadı.");
+                return View();
+
+            }
+
+            User user = _database.Users.Find(x => x.UserName == userName).FirstOrDefault();
+
+            ObjectId id1 = user.UserId;
+            ObjectId id2 = user2.UserId;
+
+            Chat _chat = _database.Chats.Find(x => x.UsersId.Contains(id1) && x.UsersId.Contains(id2)).FirstOrDefault();
+            if (_chat ==null)
+            {
+                var chat = new Chat();
+                chat.UsersId = new List<ObjectId> { id1, id2 };
+                chat.SenderUsername = user2.UserName;
+                chat.ReceiverUsername = user.UserName;
+
+                _database.Chats.InsertOne(chat);
+
+                
+            }
+            return RedirectToAction("HomePage");
+        }
+
+        public IActionResult Chat(string id)
+        {
+            // Chat id'sine göre veritabanından sohbeti alabilirsiniz
+            var chat = _database.Chats.Find(c => c.Id == ObjectId.Parse(id)).FirstOrDefault();
+
+            if (chat == null)
+            {
+                return NotFound(); // Sohbet bulunamazsa
+            }
+
+            // Sohbeti ve diğer gerekli bilgileri view'a gönder
+            return RedirectToAction("HomePage", chat);
         }
 
         [HttpGet]
@@ -198,7 +256,7 @@ namespace NoteSharingApp.Controllers
                 .Find(c => 
                     (c.SenderUsername == currentUsername && c.ReceiverUsername == targetUsername) ||
                     (c.SenderUsername == targetUsername && c.ReceiverUsername == currentUsername))
-                .SortBy(c => c.Timestamp)
+                .SortBy(c => c.CreatedAt)
                 .ToListAsync();
 
             ViewBag.TargetUsername = targetUsername;
