@@ -18,6 +18,6 @@ namespace NoteSharingApp.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [BsonElement("Messages")]
-        public string Messages { get; set; } // Mesajlar
+        public List<Message>? Messages { get; set; } // Mesajlar
     }
 }
