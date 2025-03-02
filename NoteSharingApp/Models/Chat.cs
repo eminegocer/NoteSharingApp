@@ -1,6 +1,5 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using System;
 
 namespace NoteSharingApp.Models
 {
@@ -8,11 +7,17 @@ namespace NoteSharingApp.Models
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
+        public ObjectId Id { get; set; }
+
+        [BsonElement("UsersId")]
+        public List<ObjectId> UsersId { get; set; } // UserId'ler (Kiþisel sohbet için iki kiþi)
 
         public string SenderUsername { get; set; }
         public string ReceiverUsername { get; set; }
-        public string Message { get; set; }
-        public DateTime Timestamp { get; set; }
+        [BsonElement("CreatedAt")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [BsonElement("Messages")]
+        public string Messages { get; set; } // Mesajlar
     }
 }

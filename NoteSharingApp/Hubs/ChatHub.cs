@@ -32,8 +32,8 @@ namespace NoteSharingApp.Hubs
                 {
                     SenderUsername = senderUsername,
                     ReceiverUsername = receiverUsername,
-                    Message = message,
-                    Timestamp = DateTime.UtcNow
+                    Messages = message,
+                    CreatedAt = DateTime.UtcNow
                 };
                 await _database.Chats.InsertOneAsync(chat);
 
