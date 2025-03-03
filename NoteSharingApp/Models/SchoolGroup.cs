@@ -16,6 +16,9 @@ namespace NoteSharingApp.Models
         [BsonElement("SchoolName")]
         public string  SchoolName { get; set; }
 
+        [BsonElement("DepartmentName")]
+        public string DepartmentName { get; set; }
+
         [BsonElement("Description")]
         public string Description { get; set; }
 

@@ -193,7 +193,28 @@ namespace NoteSharingApp.Controllers
                 senderUsername = user2.UserName
             });
         }
+        [HttpGet]
+        public async Task<IActionResult> GetGroup(string searchTerm)
+        {
+            if (string.IsNullOrEmpty(searchTerm))
+                return Json(new List<object>());
 
+            var schoolGroups = await _database.SchoolGroups
+                .Find(g => g.GroupName.ToLower().Contains(searchTerm.ToLower()) ||
+                           g.SchoolName.ToLower().Contains(searchTerm.ToLower()) ||
+                           g.DepartmentName.ToLower().Contains(searchTerm.ToLower()))
+                .Limit(5)
+                .ToListAsync();
+
+            var result = schoolGroups.Select(g => new
+            {
+                groupName = g.GroupName,
+                schoolName = g.SchoolName,
+                departmentName = g.DepartmentName
+            });
+
+            return Json(result);
+        }
 
 
 
@@ -259,19 +280,5 @@ namespace NoteSharingApp.Controllers
             return PartialView("_ChatPartial");
         }
 
-        [HttpGet]
-        public async Task<IActionResult> SearchSchoolGroups(string searchTerm)
-        {
-            if (string.IsNullOrEmpty(searchTerm))
-                return Json(new List<string>());
-
-            var schoolGroups = await _database.SchoolGroups
-                .Find(g => g.GroupName.ToLower().Contains(searchTerm.ToLower()))
-                .Project(g => g.GroupName)
-                .Limit(5)
-                .ToListAsync();
-
-            return Json(schoolGroups);
-        }
     }
 }
