@@ -22,17 +22,23 @@
         <div id="messages" class="space-y-4">
             @if (ViewBag.ChatHistory != null)
             {
-                foreach (var message in ViewBag.ChatHistory)
+                foreach (var chat in ViewBag.ChatHistory)
                 {
-                    var isCurrentUser = message.SenderUsername == currentUsername;
-                    <div class="flex @(isCurrentUser ? "justify-end" : "justify-start") mb-4">
-                        <div class="@(isCurrentUser ? "bg-purple-500 text-white" : "bg-white text-gray-800") rounded-lg p-3 max-w-[70%] shadow-sm">
-                            <p class="break-words">@message.Messages</p>
-                            <span class="text-xs @(isCurrentUser ? "text-purple-100" : "text-gray-500") block mt-1">
-                                @message.CreatedAt.ToLocalTime().ToString("HH:mm")
-                            </span>
-                        </div>
-                    </div>
+                    if (chat.Messages != null)
+                    {
+                        foreach (var message in chat.Messages)
+                        {
+                            var isCurrentUser = message.SenderUsername == currentUsername;
+                            <div class="flex @(isCurrentUser ? "justify-end" : "justify-start") mb-4">
+                                <div class="@(isCurrentUser ? "bg-purple-500 text-white" : "bg-white text-gray-800") rounded-lg p-3 max-w-[70%] shadow-sm">
+                                    <p class="break-words">@message.Content</p>
+                                    <span class="text-xs @(isCurrentUser ? "text-purple-100" : "text-gray-500") block mt-1">
+                                        @message.CreatedAt.ToLocalTime().ToString("HH:mm")
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    }
                 }
             }
         </div>

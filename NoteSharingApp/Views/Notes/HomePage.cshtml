@@ -155,18 +155,18 @@
         </div>
 
         <!-- Kişisel Sohbet -->
-        <div class="space-y-3 mb-6">
+        <div class="space-y-3 mb-3">
             <h3 class="text-sm font-semibold text-gray-700">Kişisel Sohbet</h3>
             <div class="space-y-3">
                 <form asp-action="AddChatDb" method="post" onsubmit="return handleChatSubmit(event)">
                     <div class="relative">
                         <input type="text"
-                                name="userName"
+                               name="userName"
                                id="userSearchInput"
-                               class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
+                               class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none mb-3"
                                placeholder="Kullanıcı adı girin...">
                         <div id="userSuggestions"
-                             class="absolute w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg hidden">
+                             class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
@@ -179,6 +179,26 @@
                 <div id="chatPanel" class="hidden mt-6">
                     <!-- Buraya Chat partial view'ı dinamik olarak ekleyeceğiz -->
                 </div>
+            </div>
+        </div>
+
+        <!-- Grup Ara -->
+        <div class="space-y-3 mb-6">
+            <h3 class="text-sm font-semibold text-gray-700">Grup Ara</h3>
+            <div class="space-y-3">
+                <div class="relative">
+                    <input type="text"
+                           id="schoolGroupSearchInput"
+                           class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
+                           placeholder="Bölüm adı veya okul adı girin...">
+                    <div id="schoolGroupSuggestions"
+                         class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+                    </div>
+                </div>
+                <button onclick="searchSchoolGroups()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-school"></i>
+                    <span>Okul/Bölüm Ara</span>
+                </button>
             </div>
         </div>
 
@@ -197,52 +217,25 @@
             </div>
         </div>
 
-        <!-- Grup Ara -->
-        <div class="space-y-3 mb-6">
-            <h3 class="text-sm font-semibold text-gray-700">Grup Ara</h3>
-            <div class="space-y-3">
-                <input type="text"
-                       id="schoolGroupSearchInput"
-                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
-                       placeholder="Bölüm adı veya okul adı girin...">
-                <div id="schoolGroupSuggestions"
-                     class="absolute w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg hidden">
-                </div>
-                <button onclick="searchSchoolGroups()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
-                    <i class="fas fa-school"></i>
-                    <span>Okul/Bölüm Ara</span>
-                </button>
-            </div>
-        </div>
 
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 let typingTimer;
                 const doneTypingInterval = 300;
 
-                // Global closeChat fonksiyonunu tanımla
-                window.closeChat = function() {
-                    const mainContent = document.getElementById('mainContent');
-                    const chatContent = document.getElementById('chatContent');
-                    
-                    // Sohbet içeriğini temizle ve gizle
-                    chatContent.innerHTML = '';
-                    chatContent.classList.add('hidden');
-                    
-                    // Ana içeriği göster
-                    mainContent.classList.remove('hidden');
-                };
-
                 // Kullanıcı arama input olayı
-                document.getElementById('userSearchInput').addEventListener('input', function() {
-                    clearTimeout(typingTimer);
+                const userSearchInput = document.getElementById('userSearchInput');
+                const suggestionsDiv = document.getElementById('userSuggestions');
+
+                userSearchInput.addEventListener('input', function() {
                     const searchTerm = this.value.trim();
 
                     if (searchTerm.length < 2) {
-                        document.getElementById('userSuggestions').classList.add('hidden');
+                        suggestionsDiv.classList.add('hidden');
                         return;
                     }
 
+                    clearTimeout(typingTimer);
                     typingTimer = setTimeout(() => {
                         searchUsers(searchTerm);
                     }, doneTypingInterval);
@@ -251,7 +244,7 @@
                 // Form submit işlemi
                 window.handleChatSubmit = function(event) {
                     event.preventDefault();
-                    const userName = document.getElementById('userSearchInput').value.trim();
+                    const userName = userSearchInput.value.trim();
                     
                     if (!userName) {
                         alert('Lütfen bir kullanıcı adı girin.');
@@ -270,7 +263,8 @@
                         if (data.success) {
                             loadChat(data.targetUsername);
                             updatePersonalChatsList(data.targetUsername);
-                            document.getElementById('userSearchInput').value = '';
+                            userSearchInput.value = '';
+                            suggestionsDiv.classList.add('hidden');
                         } else {
                             alert(data.message || 'Sohbet başlatılırken bir hata oluştu.');
                         }
@@ -288,29 +282,38 @@
                     fetch(`/Notes/SearchUsers?searchTerm=${encodeURIComponent(searchTerm)}`)
                         .then(response => response.json())
                         .then(users => {
-                            const suggestionsDiv = document.getElementById('userSuggestions');
                             suggestionsDiv.innerHTML = '';
 
-                            if (users.length > 0) {
+                            if (users && users.length > 0) {
                                 users.forEach(username => {
                                     const suggestion = document.createElement('div');
-                                    suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
+                                    suggestion.className = 'p-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-gray-100 last:border-0';
                                     suggestion.innerHTML = `
-                                        <i class="fas fa-user text-gray-400 text-xs"></i>
-                                        <span>${username}</span>
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-user text-purple-400"></i>
+                                            <span class="text-gray-700">${username}</span>
+                                        </div>
                                     `;
                                     suggestion.onclick = () => {
-                                        document.getElementById('userSearchInput').value = username;
+                                        userSearchInput.value = username;
                                         suggestionsDiv.classList.add('hidden');
                                     };
                                     suggestionsDiv.appendChild(suggestion);
                                 });
                                 suggestionsDiv.classList.remove('hidden');
                             } else {
-                                suggestionsDiv.classList.add('hidden');
+                                const noResult = document.createElement('div');
+                                noResult.className = 'p-3 text-center text-gray-500';
+                                noResult.textContent = 'Sonuç bulunamadı';
+                                suggestionsDiv.appendChild(noResult);
+                                suggestionsDiv.classList.remove('hidden');
                             }
                         })
-                        .catch(error => console.error('Error:', error));
+                        .catch(error => {
+                            console.error('Error:', error);
+                            suggestionsDiv.innerHTML = '<div class="p-3 text-center text-red-500">Bir hata oluştu</div>';
+                            suggestionsDiv.classList.remove('hidden');
+                        });
                 }
 
                 // Sohbet yükleme
@@ -358,112 +361,96 @@
 
                 // Tıklama olayları
                 document.addEventListener('click', function(e) {
-                    if (!e.target.closest('#userSearchInput')) {
-                        document.getElementById('userSuggestions').classList.add('hidden');
+                    if (!userSearchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                        suggestionsDiv.classList.add('hidden');
                     }
                 });
 
-                // Sohbet açıldığında chatId'yi al
-                var chatId = '@ViewBag.ChatId';
-                var chatHistory = @Html.Raw(Json.Serialize(ViewBag.ChatHistory));
-
-                // Chat başlatıldığında partial view'ı yüklemek için kullanacağımız fonksiyon
-                function loadChatPartialView(chatId, chatHistory) {
-                    // Burada chatHistory'yi mesaj olarak ekliyoruz
-                    let messageHtml = '';
-                    chatHistory.forEach(function (message) {
-                        const isCurrentUser = message.senderUsername === currentUsername;
-                        messageHtml += `
-                            <div class="flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4">
-                                <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
-                                    <p class="break-words">${message.messages}</p>
-                                    <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
-                                        ${new Date(message.createdAt).toLocaleTimeString()}
-                                    </span>
-                                </div>
-                            </div>
-                        `;
-                    });
-
-                    // Sohbeti yükle ve göster
-                    document.getElementById('chatPanel').innerHTML = messageHtml;
-                    document.getElementById('chatPanel').classList.remove('hidden');
-                }
-
-                // Sohbet mesajlarını al ve göster
-                connection.on("ReceiveMessage", (senderUsername, message) => {
-                    const messageDiv = document.createElement("div");
-                    const isCurrentUser = senderUsername === currentUsername;
-
-                    messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
-                    messageDiv.innerHTML = `
-                        <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
-                            <p class="break-words">${message}</p>
-                            <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
-                                ${new Date().toLocaleTimeString()}
-                            </span>
-                        </div>
-                    `;
-                    messagesDiv.appendChild(messageDiv);
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                });
-
-                // Bağlantıyı başlat
-                async function startConnection() {
-                    try {
-                        await connection.start();
-                        console.log("SignalR Connected successfully");
-                        await connection.invoke("JoinChat", currentUsername);
-                    } catch (err) {
-                        console.error("SignalR Connection Error:", err);
-                        setTimeout(startConnection, 5000);
-                    }
-                }
-
-                startConnection();
-
-                document.getElementById('schoolGroupSearchInput').addEventListener('input', function() {
-                    clearTimeout(typingTimer);
-                    const searchTerm = this.value.trim();
-
-                    if (searchTerm.length < 2) {
-                        document.getElementById('schoolGroupSuggestions').classList.add('hidden');
-                        return;
-                    }
-
-                    typingTimer = setTimeout(() => {
-                        searchSchoolGroups(searchTerm);
-                    }, doneTypingInterval);
-                });
+                // Global closeChat fonksiyonu
+                window.closeChat = function() {
+                    const mainContent = document.getElementById('mainContent');
+                    const chatContent = document.getElementById('chatContent');
+                    
+                    chatContent.innerHTML = '';
+                    chatContent.classList.add('hidden');
+                    mainContent.classList.remove('hidden');
+                };
 
                 function searchSchoolGroups(searchTerm) {
-                    fetch(`/Notes/SearchSchoolGroups?searchTerm=${encodeURIComponent(searchTerm)}`)
+                    fetch(`/Notes/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
                         .then(response => response.json())
                         .then(groups => {
                             const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
                             suggestionsDiv.innerHTML = '';
 
-                            if (groups.length > 0) {
-                                groups.forEach(groupName => {
+                            if (groups && groups.length > 0) {
+                                groups.forEach(group => {
                                     const suggestion = document.createElement('div');
-                                    suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
+                                    suggestion.className = 'p-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-gray-100 last:border-0';
                                     suggestion.innerHTML = `
-                                        <i class="fas fa-school text-gray-400 text-xs"></i>
-                                        <span>${groupName}</span>
+                                        <div class="flex flex-col gap-1">
+                                            <div class="flex items-center gap-2">
+                                                <i class="fas fa-users text-purple-400"></i>
+                                                <span class="text-gray-700 font-semibold">${group.groupName}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-sm text-gray-500">
+                                                <i class="fas fa-school text-purple-300"></i>
+                                                <span>${group.schoolName}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-sm text-gray-500">
+                                                <i class="fas fa-graduation-cap text-purple-300"></i>
+                                                <span>${group.departmentName}</span>
+                                            </div>
+                                        </div>
                                     `;
                                     suggestion.onclick = () => {
-                                        document.getElementById('schoolGroupSearchInput').value = groupName;
+                                        document.getElementById('schoolGroupSearchInput').value = group.groupName;
                                         suggestionsDiv.classList.add('hidden');
                                     };
                                     suggestionsDiv.appendChild(suggestion);
                                 });
                                 suggestionsDiv.classList.remove('hidden');
                             } else {
-                                suggestionsDiv.classList.add('hidden');
+                                const noResult = document.createElement('div');
+                                noResult.className = 'p-3 text-center text-gray-500';
+                                noResult.textContent = 'Sonuç bulunamadı';
+                                suggestionsDiv.appendChild(noResult);
+                                suggestionsDiv.classList.remove('hidden');
                             }
                         })
-                        .catch(error => console.error('Error:', error));
+                        .catch(error => {
+                            console.error('Error:', error);
+                            const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
+                            suggestionsDiv.innerHTML = '<div class="p-3 text-center text-red-500">Bir hata oluştu</div>';
+                            suggestionsDiv.classList.remove('hidden');
+                        });
                 }
+
+                // Okul/Bölüm arama input olayı
+                document.getElementById('schoolGroupSearchInput').addEventListener('input', function() {
+                    const searchTerm = this.value.trim();
+                    const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
+
+                    if (searchTerm.length < 2) {
+                        suggestionsDiv.classList.add('hidden');
+                        return;
+                    }
+
+                    clearTimeout(typingTimer);
+                    typingTimer = setTimeout(() => {
+                        searchSchoolGroups(searchTerm);
+                    }, doneTypingInterval);
+                });
+
+                // Tıklama olayları için event listener
+                document.addEventListener('click', function(e) {
+                    const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
+                    const searchInput = document.getElementById('schoolGroupSearchInput');
+                    
+                    if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                        suggestionsDiv.classList.add('hidden');
+                    }
+                });
 
                 function createGroup() {
                     const groupName = document.getElementById('groupNameInput').value.trim();
