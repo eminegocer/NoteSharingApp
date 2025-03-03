@@ -153,19 +153,21 @@ namespace NoteSharingApp.Controllers
             // String userId'yi ObjectId'ye çevir
             if (!ObjectId.TryParse(userId, out var parsedOwnerId))
             {
-                ModelState.AddModelError("", "Geçersiz kullanıcı kimliği.");
-                return View();
+                return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
             }
 
             // MongoDB'den kullanıcıyı bul
             User user2 = _database.Users.Find(u => u.UserId == parsedOwnerId).FirstOrDefault();
             if (user2 == null)
             {
-                ModelState.AddModelError("", "Kullanıcı bulunamadı.");
-                return View();
+                return Json(new { success = false, message = "Kullanıcı bulunamadı." });
             }
 
             User user = _database.Users.Find(x => x.UserName == userName).FirstOrDefault();
+            if (user == null)
+            {
+                return Json(new { success = false, message = "Hedef kullanıcı bulunamadı." });
+            }
 
             ObjectId id1 = user.UserId;
             ObjectId id2 = user2.UserId;
@@ -181,17 +183,14 @@ namespace NoteSharingApp.Controllers
                 };
 
                 _database.Chats.InsertOne(chat);
-                _chat = chat;  // Yeni sohbet oluşturduğunda _chat'e atanıyor
+                _chat = chat;
             }
 
-            // Sohbetin içeriğini (mesajları) de döndürmek
-            var chatHistory = _chat.Messages.ToList();
-
-            // Sohbetin içeriklerini döndürerek JSON formatında gönderiyoruz
-            return Json(new
-            {
+            return Json(new { 
+                success = true,
                 chatId = _chat.Id.ToString(),
-                chatHistory = chatHistory
+                targetUsername = user.UserName,
+                senderUsername = user2.UserName
             });
         }
 
