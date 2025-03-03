@@ -158,7 +158,7 @@
         <div class="space-y-3 mb-6">
             <h3 class="text-sm font-semibold text-gray-700">Kişisel Sohbet</h3>
             <div class="space-y-3">
-                <form asp-action="AddChatDb" method="post">
+                <form asp-action="AddChatDb" method="post" onsubmit="return handleChatSubmit(event)">
                     <div class="relative">
                         <input type="text"
                                 name="userName"
@@ -169,7 +169,7 @@
                              class="absolute w-full bg-white border border-gray-200 rounded-lg mt-1 shadow-lg hidden">
                         </div>
                     </div>
-                    <button type="submit" onclick="startPersonalChat()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <i class="fas fa-user-plus"></i>
                         <span>Kişisel Sohbet Başlat</span>
                     </button>
@@ -216,29 +216,156 @@
         </div>
 
         <script>
-                                 document.addEventListener('DOMContentLoaded', function () {
-                // Sohbet açıldığında chatId'yi al
-                var chatId = '@ViewBag.ChatId'; // ViewBag.ChatId'yi View'a gönderiyorsanız
-                var chatHistory = @Html.Raw(Json.Serialize(ViewBag.ChatHistory)); // View'da chatHistory'yi almak
+            document.addEventListener('DOMContentLoaded', function () {
+                let typingTimer;
+                const doneTypingInterval = 300;
 
-                // Sohbet geçmişini ekrana yazdır
-                var messagesDiv = document.getElementById("messages");
-                chatHistory.forEach(function (message) {
-                    var messageDiv = document.createElement("div");
-                    messageDiv.className = 'message-class';
-                    messageDiv.innerHTML = `
-                        <p>${message.Content}</p>
-                        <span>${message.CreatedAt}</span>
-                    `;
-                    messagesDiv.appendChild(messageDiv);
+                // Global closeChat fonksiyonunu tanımla
+                window.closeChat = function() {
+                    const mainContent = document.getElementById('mainContent');
+                    const chatContent = document.getElementById('chatContent');
+                    
+                    // Sohbet içeriğini temizle ve gizle
+                    chatContent.innerHTML = '';
+                    chatContent.classList.add('hidden');
+                    
+                    // Ana içeriği göster
+                    mainContent.classList.remove('hidden');
+                };
+
+                // Kullanıcı arama input olayı
+                document.getElementById('userSearchInput').addEventListener('input', function() {
+                    clearTimeout(typingTimer);
+                    const searchTerm = this.value.trim();
+
+                    if (searchTerm.length < 2) {
+                        document.getElementById('userSuggestions').classList.add('hidden');
+                        return;
+                    }
+
+                    typingTimer = setTimeout(() => {
+                        searchUsers(searchTerm);
+                    }, doneTypingInterval);
                 });
 
-                // Eğer chatHistory boşsa, kullanıcıya "Sohbeti başlatın" mesajı verebilirsiniz
-                if (chatHistory.length === 0) {
-                    messagesDiv.innerHTML = "<p>Sohbeti başlatın...</p>";
-                }
-            });
+                // Form submit işlemi
+                window.handleChatSubmit = function(event) {
+                    event.preventDefault();
+                    const userName = document.getElementById('userSearchInput').value.trim();
+                    
+                    if (!userName) {
+                        alert('Lütfen bir kullanıcı adı girin.');
+                        return false;
+                    }
 
+                    fetch('/Notes/AddChatDb', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `userName=${encodeURIComponent(userName)}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadChat(data.targetUsername);
+                            updatePersonalChatsList(data.targetUsername);
+                            document.getElementById('userSearchInput').value = '';
+                        } else {
+                            alert(data.message || 'Sohbet başlatılırken bir hata oluştu.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+                    });
+
+                    return false;
+                };
+
+                // Kullanıcı arama
+                function searchUsers(searchTerm) {
+                    fetch(`/Notes/SearchUsers?searchTerm=${encodeURIComponent(searchTerm)}`)
+                        .then(response => response.json())
+                        .then(users => {
+                            const suggestionsDiv = document.getElementById('userSuggestions');
+                            suggestionsDiv.innerHTML = '';
+
+                            if (users.length > 0) {
+                                users.forEach(username => {
+                                    const suggestion = document.createElement('div');
+                                    suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
+                                    suggestion.innerHTML = `
+                                        <i class="fas fa-user text-gray-400 text-xs"></i>
+                                        <span>${username}</span>
+                                    `;
+                                    suggestion.onclick = () => {
+                                        document.getElementById('userSearchInput').value = username;
+                                        suggestionsDiv.classList.add('hidden');
+                                    };
+                                    suggestionsDiv.appendChild(suggestion);
+                                });
+                                suggestionsDiv.classList.remove('hidden');
+                            } else {
+                                suggestionsDiv.classList.add('hidden');
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                }
+
+                // Sohbet yükleme
+                window.loadChat = function(username) {
+                    fetch(`/Notes/ChatView?targetUsername=${encodeURIComponent(username)}`)
+                        .then(response => response.text())
+                        .then(html => {
+                            const mainContent = document.getElementById('mainContent');
+                            const chatContent = document.getElementById('chatContent');
+
+                            mainContent.classList.add('hidden');
+                            chatContent.innerHTML = html;
+                            chatContent.classList.remove('hidden');
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Sohbet yüklenirken bir hata oluştu.');
+                        });
+                };
+
+                // Sohbet listesi güncelleme
+                window.updatePersonalChatsList = function(newUsername) {
+                    const personalChatsList = document.getElementById('personalChatsList');
+                    const existingChats = personalChatsList.querySelectorAll('li');
+
+                    if (existingChats.length === 1 && existingChats[0].classList.contains('text-center')) {
+                        personalChatsList.innerHTML = '';
+                    }
+
+                    const existingChat = Array.from(existingChats).find(chat =>
+                        chat.textContent.trim() === newUsername
+                    );
+
+                    if (!existingChat) {
+                        const newChatItem = document.createElement('li');
+                        newChatItem.className = 'p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2';
+                        newChatItem.onclick = () => loadChat(newUsername);
+                        newChatItem.innerHTML = `
+                            <i class="fas fa-user-circle text-purple-400"></i>
+                            <span>${newUsername}</span>
+                        `;
+                        personalChatsList.insertBefore(newChatItem, personalChatsList.firstChild);
+                    }
+                };
+
+                // Tıklama olayları
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('#userSearchInput')) {
+                        document.getElementById('userSuggestions').classList.add('hidden');
+                    }
+                });
+
+                // Sohbet açıldığında chatId'yi al
+                var chatId = '@ViewBag.ChatId';
+                var chatHistory = @Html.Raw(Json.Serialize(ViewBag.ChatHistory));
 
                 // Chat başlatıldığında partial view'ı yüklemek için kullanacağımız fonksiyon
                 function loadChatPartialView(chatId, chatHistory) {
@@ -295,233 +422,72 @@
 
                 startConnection();
 
-                // Form submit olayı
-                $("#chatForm").submit(function (e) {
-                    e.preventDefault(); // Sayfa yenilenmesinin önüne geç
+                document.getElementById('schoolGroupSearchInput').addEventListener('input', function() {
+                    clearTimeout(typingTimer);
+                    const searchTerm = this.value.trim();
 
-                    var userName = $("input[name='userName']").val();
-                    $.ajax({
-                        type: "POST",
-                        url: "/Home/AddChatDb",
-                        data: { userName: userName },
-                        success: function (response) {
-                            if (response.chatId) {
-                                // Sohbet ID'si döndü, ve chatHistory mesajlarını da döndü
-                                loadChatPartialView(response.chatId, response.chatHistory);
-                            }
-                        },
-                        error: function () {
-                            alert("Hata oluştu. Lütfen tekrar deneyin.");
-                        }
-                    });
-                });
-            });
-
-
-
-
-
-
-
-            let typingTimer;
-            const doneTypingInterval = 300;
-
-            document.getElementById('userSearchInput').addEventListener('input', function() {
-                clearTimeout(typingTimer);
-                const searchTerm = this.value.trim();
-
-                if (searchTerm.length < 2) {
-                    document.getElementById('userSuggestions').classList.add('hidden');
-                    return;
-                }
-
-                typingTimer = setTimeout(() => {
-                    searchUsers(searchTerm);
-                }, doneTypingInterval);
-            });
-
-            function searchUsers(searchTerm) {
-                fetch(`/Notes/SearchUsers?searchTerm=${encodeURIComponent(searchTerm)}`)
-                    .then(response => response.json())
-                    .then(users => {
-                        const suggestionsDiv = document.getElementById('userSuggestions');
-                        suggestionsDiv.innerHTML = '';
-
-                        if (users.length > 0) {
-                            users.forEach(username => {
-                                const suggestion = document.createElement('div');
-                                suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
-                                suggestion.innerHTML = `
-                                    <i class="fas fa-user text-gray-400 text-xs"></i>
-                                    <span>${username}</span>
-                                `;
-                                suggestion.onclick = () => {
-                                    document.getElementById('userSearchInput').value = username;
-                                    suggestionsDiv.classList.add('hidden');
-                                };
-                                suggestionsDiv.appendChild(suggestion);
-                            });
-                            suggestionsDiv.classList.remove('hidden');
-                        } else {
-                            suggestionsDiv.classList.add('hidden');
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-            }
-
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('#userSearchInput')) {
-                    document.getElementById('userSuggestions').classList.add('hidden');
-                }
-            });
-
-            function startPersonalChat() {
-                const username = document.getElementById('userSearchInput').value.trim();
-                if (!username) {
-                    alert('Lütfen bir kullanıcı adı girin.');
-                    return;
-                }
-
-                fetch('/Notes/StartPersonalChat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ username })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        alert(data.message);
+                    if (searchTerm.length < 2) {
+                        document.getElementById('schoolGroupSuggestions').classList.add('hidden');
                         return;
                     }
 
-                    fetch(`/Notes/ChatView?targetUsername=${encodeURIComponent(data.targetUsername)}`)
-                        .then(response => response.text())
-                        .then(html => {
-                            const mainContent = document.getElementById('mainContent');
-                            const chatContent = document.getElementById('chatContent');
-
-                            mainContent.classList.add('hidden');
-                            chatContent.innerHTML = html;
-                            chatContent.classList.remove('hidden');
-
-                            updatePersonalChatsList(data.targetUsername);
-
-                            document.getElementById('userSearchInput').value = '';
-                        });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+                    typingTimer = setTimeout(() => {
+                        searchSchoolGroups(searchTerm);
+                    }, doneTypingInterval);
                 });
-            }
 
+                function searchSchoolGroups(searchTerm) {
+                    fetch(`/Notes/SearchSchoolGroups?searchTerm=${encodeURIComponent(searchTerm)}`)
+                        .then(response => response.json())
+                        .then(groups => {
+                            const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
+                            suggestionsDiv.innerHTML = '';
 
-            // sohbetleri baslatılmıs kısısel sohbet alanına ekler
-            function updatePersonalChatsList(newUsername) {
-                const personalChatsList = document.getElementById('personalChatsList');
-                const existingChats = personalChatsList.querySelectorAll('li');
-
-                if (existingChats.length === 1 && existingChats[0].classList.contains('text-center')) {
-                    personalChatsList.innerHTML = '';
+                            if (groups.length > 0) {
+                                groups.forEach(groupName => {
+                                    const suggestion = document.createElement('div');
+                                    suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
+                                    suggestion.innerHTML = `
+                                        <i class="fas fa-school text-gray-400 text-xs"></i>
+                                        <span>${groupName}</span>
+                                    `;
+                                    suggestion.onclick = () => {
+                                        document.getElementById('schoolGroupSearchInput').value = groupName;
+                                        suggestionsDiv.classList.add('hidden');
+                                    };
+                                    suggestionsDiv.appendChild(suggestion);
+                                });
+                                suggestionsDiv.classList.remove('hidden');
+                            } else {
+                                suggestionsDiv.classList.add('hidden');
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
                 }
 
-                const existingChat = Array.from(existingChats).find(chat =>
-                    chat.textContent.trim() === newUsername
-                );
+                function createGroup() {
+                    const groupName = document.getElementById('groupNameInput').value.trim();
+                    if (!groupName) {
+                        alert('Lütfen bir grup adı girin.');
+                        return;
+                    }
 
-                if (!existingChat) {
-                    const newChatItem = document.createElement('li');
-                    newChatItem.className = 'p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2';
-                    newChatItem.onclick = () => loadChat(newUsername);
-                    newChatItem.innerHTML = `
-                        <i class="fas fa-user-circle text-purple-400"></i>
-                        <span>${newUsername}</span>
-                    `;
-                    personalChatsList.insertBefore(newChatItem, personalChatsList.firstChild);
-                }
-            }
-
-            //seçili kullanıcının sohbetını yukleme
-            function loadChat(username) {
-                fetch(`/Notes/ChatView?targetUsername=${encodeURIComponent(username)}`)
-                    .then(response => response.text())
-                    .then(html => {
-                        const mainContent = document.getElementById('mainContent');
-                        const chatContent = document.getElementById('chatContent');
-
-                        mainContent.classList.add('hidden');
-                        chatContent.innerHTML = html;
-                        chatContent.classList.remove('hidden');
-                    });
-            }
-
-            document.getElementById('schoolGroupSearchInput').addEventListener('input', function() {
-                clearTimeout(typingTimer);
-                const searchTerm = this.value.trim();
-
-                if (searchTerm.length < 2) {
-                    document.getElementById('schoolGroupSuggestions').classList.add('hidden');
-                    return;
-                }
-
-                typingTimer = setTimeout(() => {
-                    searchSchoolGroups(searchTerm);
-                }, doneTypingInterval);
-            });
-
-            function searchSchoolGroups(searchTerm) {
-                fetch(`/Notes/SearchSchoolGroups?searchTerm=${encodeURIComponent(searchTerm)}`)
+                    fetch('/Notes/CreateGroup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ groupName })
+                    })
                     .then(response => response.json())
-                    .then(groups => {
-                        const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
-                        suggestionsDiv.innerHTML = '';
-
-                        if (groups.length > 0) {
-                            groups.forEach(groupName => {
-                                const suggestion = document.createElement('div');
-                                suggestion.className = 'p-2.5 hover:bg-purple-50 cursor-pointer transition-colors text-sm text-gray-600 flex items-center gap-2';
-                                suggestion.innerHTML = `
-                                    <i class="fas fa-school text-gray-400 text-xs"></i>
-                                    <span>${groupName}</span>
-                                `;
-                                suggestion.onclick = () => {
-                                    document.getElementById('schoolGroupSearchInput').value = groupName;
-                                    suggestionsDiv.classList.add('hidden');
-                                };
-                                suggestionsDiv.appendChild(suggestion);
-                            });
-                            suggestionsDiv.classList.remove('hidden');
+                    .then(data => {
+                        if (data.success) {
+                            alert('Grup başarıyla oluşturuldu!');
                         } else {
-                            suggestionsDiv.classList.add('hidden');
+                            alert('Grup oluşturulamadı: ' + data.message);
                         }
                     })
                     .catch(error => console.error('Error:', error));
-            }
-
-            function createGroup() {
-                const groupName = document.getElementById('groupNameInput').value.trim();
-                if (!groupName) {
-                    alert('Lütfen bir grup adı girin.');
-                    return;
                 }
-
-                fetch('/Notes/CreateGroup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ groupName })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Grup başarıyla oluşturuldu!');
-                    } else {
-                        alert('Grup oluşturulamadı: ' + data.message);
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            }
+            });
         </script>
