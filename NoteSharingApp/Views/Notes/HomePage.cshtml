@@ -218,6 +218,7 @@
         </div>
 
 
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 let typingTimer;
@@ -321,18 +322,91 @@
                     fetch(`/Notes/ChatView?targetUsername=${encodeURIComponent(username)}`)
                         .then(response => response.text())
                         .then(html => {
-                            const mainContent = document.getElementById('mainContent');
-                            const chatContent = document.getElementById('chatContent');
+                            try {
+                                // JSON yanıtı kontrol et
+                                const jsonResponse = JSON.parse(html);
+                                if (!jsonResponse.success) {
+                                    throw new Error(jsonResponse.message);
+                                }
+                            } catch (e) {
+                                // HTML yanıtı ise devam et
+                                const mainContent = document.getElementById('mainContent');
+                                const chatContent = document.getElementById('chatContent');
 
-                            mainContent.classList.add('hidden');
-                            chatContent.innerHTML = html;
-                            chatContent.classList.remove('hidden');
+                                mainContent.classList.add('hidden');
+                                chatContent.innerHTML = html;
+                                chatContent.classList.remove('hidden');
+
+                                // SignalR bağlantısını başlat
+                                startSignalRConnection(username);
+                            }
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            alert('Sohbet yüklenirken bir hata oluştu.');
+                            alert('Sohbet yüklenirken bir hata oluştu: ' + error.message);
                         });
                 };
+
+                // SignalR bağlantısını başlat
+                function startSignalRConnection(targetUsername) {
+                    const connection = new signalR.HubConnectionBuilder()
+                        .withUrl("/chatHub")
+                        .withAutomaticReconnect()
+                        .build();
+
+                    connection.on("ReceiveMessage", (senderUsername, message) => {
+                        const messagesDiv = document.getElementById('messages');
+                        const messageDiv = document.createElement('div');
+                        const isCurrentUser = senderUsername === '@User.Identity.Name';
+                        
+                        messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+                        messageDiv.innerHTML = `
+                            <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
+                                <p class="break-words">${message}</p>
+                                <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
+                                    ${new Date().toLocaleTimeString()}
+                                </span>
+                            </div>
+                        `;
+                        
+                        messagesDiv.appendChild(messageDiv);
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    });
+
+                    connection.start()
+                        .then(() => {
+                            console.log("SignalR Connected");
+                            connection.invoke("JoinChat", '@User.Identity.Name');
+
+                            // Mesaj gönderme fonksiyonunu global scope'a ekle
+                            window.sendMessage = async function() {
+                                const messageInput = document.getElementById('messageInput');
+                                const message = messageInput.value.trim();
+                                
+                                if (message) {
+                                    try {
+                                        await connection.invoke("SendMessage", '@User.Identity.Name', targetUsername, message);
+                                        messageInput.value = '';
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("Mesaj gönderilemedi");
+                                    }
+                                }
+                            };
+
+                            // Enter tuşu ile mesaj gönderme
+                            const messageInput = document.getElementById('messageInput');
+                            if (messageInput) {
+                                messageInput.addEventListener('keypress', function(event) {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        sendMessage();
+                                    }
+                                });
+                            }
+                        })
+                        .catch(err => console.error("SignalR Connection Error: ", err));
+                }
 
                 // Sohbet listesi güncelleme
                 window.updatePersonalChatsList = function(newUsername) {
@@ -359,13 +433,6 @@
                     }
                 };
 
-                // Tıklama olayları
-                document.addEventListener('click', function(e) {
-                    if (!userSearchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-                        suggestionsDiv.classList.add('hidden');
-                    }
-                });
-
                 // Global closeChat fonksiyonu
                 window.closeChat = function() {
                     const mainContent = document.getElementById('mainContent');
@@ -375,6 +442,13 @@
                     chatContent.classList.add('hidden');
                     mainContent.classList.remove('hidden');
                 };
+
+                // Tıklama olayları
+                document.addEventListener('click', function(e) {
+                    if (!userSearchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                        suggestionsDiv.classList.add('hidden');
+                    }
+                });
 
                 function searchSchoolGroups(searchTerm) {
                     fetch(`/Notes/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)

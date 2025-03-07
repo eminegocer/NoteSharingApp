@@ -3,6 +3,7 @@ using NoteSharingApp.Models;
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using MongoDB.Bson;
 
 namespace NoteSharingApp.Hubs
 {
@@ -26,7 +27,19 @@ namespace NoteSharingApp.Hubs
         {
             try 
             {
-                System.Diagnostics.Debug.WriteLine($"Sending message from {senderUsername} to {receiverUsername}: {message}");
+                // Önce kullanıcıları kontrol et
+                var sender = await _database.Users.Find(u => u.UserName == senderUsername).FirstOrDefaultAsync();
+                var receiver = await _database.Users.Find(u => u.UserName == receiverUsername).FirstOrDefaultAsync();
+
+                if (sender == null)
+                {
+                    throw new Exception($"Gönderen kullanıcı ({senderUsername}) bulunamadı");
+                }
+
+                if (receiver == null)
+                {
+                    throw new Exception($"Alıcı kullanıcı ({receiverUsername}) bulunamadı");
+                }
 
                 // Find existing chat or create new one
                 var chat = await _database.Chats
@@ -40,6 +53,7 @@ namespace NoteSharingApp.Hubs
                     // Create new chat
                     chat = new Chat
                     {
+                        UsersId = new List<ObjectId> { sender.UserId, receiver.UserId },
                         SenderUsername = senderUsername,
                         ReceiverUsername = receiverUsername,
                         Messages = new List<Message>(),
@@ -49,16 +63,30 @@ namespace NoteSharingApp.Hubs
                 }
 
                 // Create new message
-                var newMessage = new Message(senderUsername,message)
+                var newMessage = new Message
                 {
-                    Content = message,
                     SenderUsername = senderUsername,
+                    Content = message,
                     CreatedAt = DateTime.UtcNow
                 };
 
                 // Add message to chat
-                var update = Builders<Chat>.Update.Push(c => c.Messages, newMessage);
-                await _database.Chats.UpdateOneAsync(c => c.Id == chat.Id, update);
+                if (chat.Messages == null)
+                {
+                    chat.Messages = new List<Message>();
+                }
+
+                chat.Messages.Add(newMessage);
+
+                // Update chat in database
+                var filter = Builders<Chat>.Filter.Eq(c => c.Id, chat.Id);
+                var update = Builders<Chat>.Update.Set(c => c.Messages, chat.Messages);
+                var result = await _database.Chats.UpdateOneAsync(filter, update);
+
+                if (result.ModifiedCount == 0)
+                {
+                    throw new Exception("Mesaj veritabanına kaydedilemedi");
+                }
 
                 // Send message to sender
                 await Clients.Caller.SendAsync("ReceiveMessage", senderUsername, message);
@@ -67,16 +95,12 @@ namespace NoteSharingApp.Hubs
                 if (UserConnections.TryGetValue(receiverUsername, out string receiverConnectionId))
                 {
                     await Clients.Client(receiverConnectionId).SendAsync("ReceiveMessage", senderUsername, message);
-                    System.Diagnostics.Debug.WriteLine($"Message sent to receiver {receiverConnectionId}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"Receiver {receiverUsername} not found in connections");
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in SendMessage: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"SendMessage Error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Sender: {senderUsername}, Receiver: {receiverUsername}");
                 throw;
             }
         }

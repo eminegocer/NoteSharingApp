@@ -265,19 +265,50 @@ namespace NoteSharingApp.Controllers
 
         public async Task<IActionResult> ChatView(string targetUsername)
         {
-            var currentUsername = User.Identity.Name;
-            
-            // Get chat history
-            var chatHistory = await _database.Chats
-                .Find(c => 
-                    (c.SenderUsername == currentUsername && c.ReceiverUsername == targetUsername) ||
-                    (c.SenderUsername == targetUsername && c.ReceiverUsername == currentUsername))
-                .SortBy(c => c.CreatedAt)
-                .ToListAsync();
+            try
+            {
+                var currentUsername = User.Identity.Name;
 
-            ViewBag.TargetUsername = targetUsername;
-            ViewBag.ChatHistory = chatHistory;
-            return PartialView("_ChatPartial");
+                // Hedef kullanıcının varlığını kontrol et
+                var targetUser = await _database.Users.Find(u => u.UserName == targetUsername).FirstOrDefaultAsync();
+                if (targetUser == null)
+                {
+                    return Json(new { success = false, message = "Kullanıcı bulunamadı." });
+                }
+
+                // Get chat history
+                var chatHistory = await _database.Chats
+                    .Find(c => 
+                        (c.SenderUsername == currentUsername && c.ReceiverUsername == targetUsername) ||
+                        (c.SenderUsername == targetUsername && c.ReceiverUsername == currentUsername))
+                    .SortBy(c => c.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                // Eğer chat yoksa yeni bir chat oluştur
+                if (chatHistory == null)
+                {
+                    var currentUser = await _database.Users.Find(u => u.UserName == currentUsername).FirstOrDefaultAsync();
+                    
+                    chatHistory = new Chat
+                    {
+                        UsersId = new List<ObjectId> { currentUser.UserId, targetUser.UserId },
+                        SenderUsername = currentUsername,
+                        ReceiverUsername = targetUsername,
+                        Messages = new List<Message>(),
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _database.Chats.InsertOneAsync(chatHistory);
+                }
+
+                ViewBag.TargetUsername = targetUsername;
+                ViewBag.ChatHistory = new List<Chat> { chatHistory };
+                return PartialView("_ChatPartial");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Sohbet yüklenirken bir hata oluştu." });
+            }
         }
 
     }

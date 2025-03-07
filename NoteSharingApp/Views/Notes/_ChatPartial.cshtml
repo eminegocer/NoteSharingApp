@@ -1,5 +1,5 @@
 @{
-    var currentUsername = User.Identity.Name;
+    var currentUsername = User.Identity?.Name ?? "";
 }
 
 <div class="flex flex-col h-[calc(100vh-8rem)]">
@@ -51,8 +51,9 @@
                    id="messageInput"
                    class="flex-1 border rounded-full px-4 py-2 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
                    placeholder="Mesajınızı yazın..."
-                   onkeypress="handleKeyPress(event)">
-            <button onclick="sendMessage()" 
+                   autocomplete="off">
+            <button type="button"
+                    onclick="sendMessage()"
                     class="bg-purple-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-purple-600 transition-colors">
                 <i class="fas fa-paper-plane"></i>
             </button>
@@ -60,110 +61,92 @@
     </div>
 </div>
 
-<script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.6/signalr.min.js"></script>
 <script>
-    const currentUsername = '@User.Identity.Name';
-    const targetUsername = '@ViewBag.TargetUsername';
-    const messageInput = document.getElementById("messageInput");
-    const messagesDiv = document.getElementById("messages");
+    document.addEventListener('DOMContentLoaded', function () {
+        const currentUsername = '@(User.Identity?.Name ?? "")';
+        const targetUsername = '@(ViewBag.TargetUsername ?? "")';
+        
+        if (!currentUsername || !targetUsername) {
+            console.error("Kullanıcı bilgileri eksik:", { currentUsername, targetUsername });
+            return;
+        }
+        
+        const messageInput = document.getElementById("messageInput");
+        const messagesDiv = document.getElementById("messages");
 
-    // SignalR bağlantısını oluştur
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/chatHub")
-        .withAutomaticReconnect()
-        .configureLogging(signalR.LogLevel.Debug)
-        .build();
+        // SignalR bağlantısını oluştur
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
 
-    // Mesaj alma olayını dinle
-    connection.on("ReceiveMessage", (senderUsername, message) => {
-        console.log("Message received from", senderUsername + ":", message);
-        
-        const messageDiv = document.createElement("div");
-        const isCurrentUser = senderUsername === currentUsername;
-        
-        messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
-        messageDiv.innerHTML = `
-            <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
-                <p class="break-words">${message}</p>
-                <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
-                    ${new Date().toLocaleTimeString()}
-                </span>
-            </div>
-        `;
-        
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    });
+        // Enter tuşu ile mesaj gönderme
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
 
-    // Mesaj gönderme fonksiyonu
-    window.sendMessage = async function() {
-        const message = messageInput.value.trim();
-        console.log("Attempting to send message:", message);
-        console.log("To user:", targetUsername);
-        
-        if (message) {
+        // Mesaj alma olayını dinle
+        connection.on("ReceiveMessage", (senderUsername, message) => {
+            console.log("Message received from", senderUsername + ":", message);
+            
+            const messageDiv = document.createElement("div");
+            const isCurrentUser = senderUsername === currentUsername;
+            
+            messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+            messageDiv.innerHTML = `
+                <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
+                    <p class="break-words">${message}</p>
+                    <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
+                        ${new Date().toLocaleTimeString()}
+                    </span>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        // Mesaj gönderme fonksiyonu
+        window.sendMessage = async function() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
             try {
-                console.log("Connection state:", connection.state);
-                if (connection.state === "Connected") {
-                    await connection.invoke("SendMessage", currentUsername, targetUsername, message);
-                    console.log("Message sent successfully");
-                    messageInput.value = '';
-                } else {
-                    console.log("Connection not ready. Current state:", connection.state);
-                    alert("Bağlantı kurulamadı. Lütfen sayfayı yenileyin.");
+                if (connection.state !== "Connected") {
+                    await startConnection();
                 }
+                
+                await connection.invoke("SendMessage", currentUsername, targetUsername, message);
+                messageInput.value = '';
             } catch (err) {
                 console.error("Error sending message:", err);
                 alert("Mesaj gönderilemedi: " + err.message);
             }
+        };
+
+        // SignalR bağlantısını başlat
+        async function startConnection() {
+            try {
+                if (connection.state === "Disconnected") {
+                    await connection.start();
+                    console.log("SignalR Connected");
+                    await connection.invoke("JoinChat", currentUsername);
+                }
+            } catch (err) {
+                console.error("SignalR Connection Error:", err);
+                setTimeout(startConnection, 5000);
+            }
         }
-    };
 
-    // Enter tuşu ile mesaj gönderme
-    window.handleKeyPress = function(event) {
-        if (event.key === "Enter") {
-            sendMessage();
-        }
-    };
+        // Sayfa yüklendiğinde bağlantıyı başlat
+        startConnection();
 
-    // Sohbeti kapatma fonksiyonu
-    window.closeChat = function() {
-        const mainContent = document.getElementById('mainContent');
-        const chatContent = document.getElementById('chatContent');
-        
-        // Sohbet içeriğini temizle ve gizle
-        chatContent.innerHTML = '';
-        chatContent.classList.add('hidden');
-        
-        // Ana içeriği göster
-        mainContent.classList.remove('hidden');
-        
-        // SignalR bağlantısını kapat
-        if (connection && connection.state === "Connected") {
-            connection.stop().then(() => {
-                console.log("SignalR connection closed");
-            }).catch((err) => {
-                console.error("Error closing SignalR connection:", err);
-            });
-        }
-    };
-
-    // SignalR bağlantısını başlat
-    async function startConnection() {
-        try {
-            await connection.start();
-            console.log("SignalR Connected successfully");
-            await connection.invoke("JoinChat", currentUsername);
-            console.log("Joined chat successfully");
-        } catch (err) {
-            console.error("SignalR Connection Error:", err);
-            setTimeout(startConnection, 5000);
-        }
-    }
-
-    // Sayfa yüklendiğinde bağlantıyı başlat
-    startConnection();
-
-    // Scroll to bottom after loading chat history
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        // Scroll to bottom after loading chat history
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
 </script>
