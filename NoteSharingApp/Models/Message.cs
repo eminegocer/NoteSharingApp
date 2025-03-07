@@ -1,16 +1,29 @@
 ﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
-public class Message
+namespace NoteSharingApp.Models
 {
-    public ObjectId Id { get; set; }  // Mesajın benzersiz kimliği
-    public string SenderUsername { get; set; }  // Gönderen kullanıcının adı
-    public string Content { get; set; }  // Mesaj içeriği
-    public DateTime CreatedAt { get; set; }  // Mesajın gönderilme zamanı
-
-    public Message(string senderUsername, string content)
+    public class Message
     {
-        SenderUsername = senderUsername;
-        Content = content;
-        CreatedAt = DateTime.UtcNow;  // UTC zamanı kullanıyoruz
+        [BsonElement("Content")]
+        public string Content { get; set; }
+
+        [BsonElement("SenderUsername")]
+        public string SenderUsername { get; set; }
+
+        [BsonElement("CreatedAt")]
+        public DateTime CreatedAt { get; set; }
+
+        public Message()
+        {
+            CreatedAt = DateTime.UtcNow;
+        }
+
+        public Message(string senderUsername, string content)
+        {
+            SenderUsername = senderUsername;
+            Content = content;
+            CreatedAt = DateTime.UtcNow;
+        }
     }
 }
