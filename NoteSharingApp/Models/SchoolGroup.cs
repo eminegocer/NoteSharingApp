@@ -1,6 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
+using System.Collections.Generic;
 
 namespace NoteSharingApp.Models
 {
@@ -24,5 +25,8 @@ namespace NoteSharingApp.Models
 
         [BsonElement("CreatedAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        
+        [BsonElement("Participants")]
+        public List<ObjectId> ParticipantIds { get; set; } = new List<ObjectId>();
     }
 } 

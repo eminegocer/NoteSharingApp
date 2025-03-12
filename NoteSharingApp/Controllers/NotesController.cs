@@ -208,6 +208,7 @@ namespace NoteSharingApp.Controllers
 
             var result = schoolGroups.Select(g => new
             {
+                id = g.Id.ToString(),
                 groupName = g.GroupName,
                 schoolName = g.SchoolName,
                 departmentName = g.DepartmentName
@@ -217,6 +218,61 @@ namespace NoteSharingApp.Controllers
         }
 
 
+        [HttpPost]
+        public async Task<IActionResult> JoinSchoolGroup(string groupId)
+        {
+            try
+            {
+                // Kullanıcı kimliğini al
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var username = User.Identity.Name;
+
+                if (string.IsNullOrEmpty(userId) || !ObjectId.TryParse(userId, out var userObjectId))
+                {
+                    return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
+                }
+
+                if (string.IsNullOrEmpty(groupId) || !ObjectId.TryParse(groupId, out var groupObjectId))
+                {
+                    return Json(new { success = false, message = "Geçersiz grup kimliği." });
+                }
+
+                // Grubu bul
+                var group = await _database.SchoolGroups.Find(g => g.Id == groupObjectId).FirstOrDefaultAsync();
+                if (group == null)
+                {
+                    return Json(new { success = false, message = "Grup bulunamadı." });
+                }
+
+                // Kullanıcı zaten grupta mı kontrol et
+                if (group.ParticipantIds.Contains(userObjectId))
+                {
+                    return Json(new { success = true, message = "Zaten bu gruba katılmışsınız." });
+                }
+
+                // Kullanıcıyı gruba ekle
+                group.ParticipantIds.Add(userObjectId);
+                var updateResult = await _database.SchoolGroups.ReplaceOneAsync(g => g.Id == groupObjectId, group);
+
+                if (updateResult.ModifiedCount > 0)
+                {
+                    return Json(new { 
+                            success = true, 
+                            message = "Gruba başarıyla katıldınız.",
+                            groupId = group.Id.ToString(),
+                            groupName = group.GroupName
+                        });               
+                        }
+                else
+                {
+                    return Json(new { success = false, message = "Gruba katılırken bir hata oluştu." });
+                }
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = $"Bir hata oluştu: {ex.Message}" });
+            }
+        }
 
         [HttpGet]
         public async Task<IActionResult> SearchUsers(string searchTerm)
@@ -346,6 +402,31 @@ namespace NoteSharingApp.Controllers
             {
                 return Json(new { success = false, message = "Sohbet yüklenirken bir hata oluştu." });
             }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> JoinGroup(string groupId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (!ObjectId.TryParse(userId, out var parsedUserId))
+            {
+                return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
+            }
+
+            var chat = await _database.Chats.Find(c => c.Id == ObjectId.Parse(groupId)).FirstOrDefaultAsync();
+            if (chat == null)
+            {
+                return Json(new { success = false, message = "Grup bulunamadı." });
+            }
+
+            if (!chat.UsersId.Contains(parsedUserId))
+            {
+                chat.UsersId.Add(parsedUserId);
+                await _database.Chats.ReplaceOneAsync(c => c.Id == chat.Id, chat);
+            }
+
+            return Json(new { success = true, message = "Gruba başarıyla katıldınız." });
         }
 
     }
