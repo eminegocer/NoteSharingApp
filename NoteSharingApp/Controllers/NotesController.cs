@@ -263,6 +263,43 @@ namespace NoteSharingApp.Controllers
             public string Username { get; set; }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> UploadChatFile(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Json(new { success = false, message = "Dosya seçilmedi." });
+                }
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "chat-files");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var fileUrl = $"/chat-files/{uniqueFileName}";
+                return Json(new { 
+                    success = true, 
+                    fileName = file.FileName,
+                    fileUrl = fileUrl 
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Dosya yüklenirken bir hata oluştu: " + ex.Message });
+            }
+        }
+
         public async Task<IActionResult> ChatView(string targetUsername)
         {
             try

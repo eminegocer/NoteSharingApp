@@ -105,6 +105,78 @@ namespace NoteSharingApp.Hubs
             }
         }
 
+        public async Task SendFile(string senderUsername, string receiverUsername, string fileName, string fileUrl)
+        {
+            try
+            {
+                var sender = await _database.Users.Find(u => u.UserName == senderUsername).FirstOrDefaultAsync();
+                var receiver = await _database.Users.Find(u => u.UserName == receiverUsername).FirstOrDefaultAsync();
+
+                if (sender == null || receiver == null)
+                {
+                    throw new Exception("Kullanıcı bulunamadı");
+                }
+
+                var chat = await _database.Chats
+                    .Find(c => 
+                        (c.SenderUsername == senderUsername && c.ReceiverUsername == receiverUsername) ||
+                        (c.SenderUsername == receiverUsername && c.ReceiverUsername == senderUsername))
+                    .FirstOrDefaultAsync();
+
+                if (chat == null)
+                {
+                    chat = new Chat
+                    {
+                        UsersId = new List<ObjectId> { sender.UserId, receiver.UserId },
+                        SenderUsername = senderUsername,
+                        ReceiverUsername = receiverUsername,
+                        Messages = new List<Message>(),
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _database.Chats.InsertOneAsync(chat);
+                }
+
+                var newMessage = new Message
+                {
+                    SenderUsername = senderUsername,
+                    Content = $"[Dosya] {fileName}",
+                    FileUrl = fileUrl,
+                    IsFile = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                if (chat.Messages == null)
+                {
+                    chat.Messages = new List<Message>();
+                }
+
+                chat.Messages.Add(newMessage);
+
+                var filter = Builders<Chat>.Filter.Eq(c => c.Id, chat.Id);
+                var update = Builders<Chat>.Update.Set(c => c.Messages, chat.Messages);
+                var result = await _database.Chats.UpdateOneAsync(filter, update);
+
+                if (result.ModifiedCount == 0)
+                {
+                    throw new Exception("Dosya mesajı veritabanına kaydedilemedi");
+                }
+
+                // Send file message to sender
+                await Clients.Caller.SendAsync("ReceiveFile", senderUsername, fileName, fileUrl);
+
+                // Send file message to receiver if online
+                if (UserConnections.TryGetValue(receiverUsername, out string receiverConnectionId))
+                {
+                    await Clients.Client(receiverConnectionId).SendAsync("ReceiveFile", senderUsername, fileName, fileUrl);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SendFile Error: {ex.Message}");
+                throw;
+            }
+        }
+
         public override Task OnDisconnectedAsync(Exception exception)
         {
             var username = UserConnections.FirstOrDefault(x => x.Value == Context.ConnectionId).Key;
