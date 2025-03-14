@@ -11,22 +11,9 @@
             <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="text-md font-semibold text-gray-800 mb-2">Kişisel Sohbetler</h3>
                 <ul id="personalChatsList" class="space-y-2">
-                    @if (ViewBag.ChatUsers != null && ViewBag.ChatUsers.Count > 0)
-                    {
-                        @foreach (var username in ViewBag.ChatUsers)
-                        {
-                            <li onclick="loadChat('@username')" class="p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2">
-                                <i class="fas fa-user-circle text-purple-400"></i>
-                                <span>@username</span>
-                            </li>
-                        }
-                    }
-                    else
-                    {
-                        <li class="p-3 bg-purple-50 rounded-lg text-gray-500 text-center">
-                            Henüz sohbet bulunmuyor
-                        </li>
-                    }
+                    <li class="p-3 bg-purple-50 rounded-lg text-gray-500 text-center">
+                        Sohbetler yükleniyor...
+                    </li>
                 </ul>
             </div>
             
@@ -271,22 +258,22 @@
                 let typingTimer;
                 const doneTypingInterval = 300;
 
+                // Sayfa yüklendiğinde sohbet listesini getir
+                loadPersonalChats();
+
                 // Kullanıcı arama input olayı
                 const userSearchInput = document.getElementById('userSearchInput');
                 const suggestionsDiv = document.getElementById('userSuggestions');
 
                 userSearchInput.addEventListener('input', function() {
-                    const searchTerm = this.value.trim();
-
-                    if (searchTerm.length < 2) {
-                        suggestionsDiv.classList.add('hidden');
-                        return;
-                    }
-
                     clearTimeout(typingTimer);
-                    typingTimer = setTimeout(() => {
-                        searchUsers(searchTerm);
-                    }, doneTypingInterval);
+                    if (userSearchInput.value) {
+                        typingTimer = setTimeout(function() {
+                            searchUsers(userSearchInput.value);
+                        }, doneTypingInterval);
+                    } else {
+                        suggestionsDiv.classList.add('hidden');
+                    }
                 });
 
                 // Form submit işlemi
@@ -299,12 +286,12 @@
                         return false;
                     }
 
-                    fetch('/Notes/AddChatDb', {
+                    fetch('/Chat/StartPersonalChat', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'Content-Type': 'application/json'
                         },
-                        body: `userName=${encodeURIComponent(userName)}`
+                        body: JSON.stringify({ username: userName })
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -324,47 +311,42 @@
                     return false;
                 };
 
-                // Kullanıcı arama
-                function searchUsers(searchTerm) {
-                    fetch(`/Notes/SearchUsers?searchTerm=${encodeURIComponent(searchTerm)}`)
+                // Kişisel sohbetleri yükleme fonksiyonu
+                function loadPersonalChats() {
+                    fetch('/Chat/GetChatUsersForHomePage')
                         .then(response => response.json())
-                        .then(users => {
-                            suggestionsDiv.innerHTML = '';
+                        .then(chatUsers => {
+                            const personalChatsList = document.getElementById('personalChatsList');
+                            personalChatsList.innerHTML = '';
 
-                            if (users && users.length > 0) {
-                                users.forEach(username => {
-                                    const suggestion = document.createElement('div');
-                                    suggestion.className = 'p-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-gray-100 last:border-0';
-                                    suggestion.innerHTML = `
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-user text-purple-400"></i>
-                                            <span class="text-gray-700">${username}</span>
-                                        </div>
+                            if (chatUsers && chatUsers.length > 0) {
+                                chatUsers.forEach(username => {
+                                    const chatItem = document.createElement('li');
+                                    chatItem.className = 'p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2';
+                                    chatItem.onclick = () => loadChat(username);
+                                    chatItem.innerHTML = `
+                                        <i class="fas fa-user-circle text-purple-400"></i>
+                                        <span>${username}</span>
                                     `;
-                                    suggestion.onclick = () => {
-                                        userSearchInput.value = username;
-                                        suggestionsDiv.classList.add('hidden');
-                                    };
-                                    suggestionsDiv.appendChild(suggestion);
+                                    personalChatsList.appendChild(chatItem);
                                 });
-                                suggestionsDiv.classList.remove('hidden');
                             } else {
-                                const noResult = document.createElement('div');
-                                noResult.className = 'p-3 text-center text-gray-500';
-                                noResult.textContent = 'Sonuç bulunamadı';
-                                suggestionsDiv.appendChild(noResult);
-                                suggestionsDiv.classList.remove('hidden');
+                                const noChatsItem = document.createElement('li');
+                                noChatsItem.className = 'p-3 bg-purple-50 rounded-lg text-gray-500 text-center';
+                                noChatsItem.textContent = 'Henüz sohbet bulunmuyor';
+                                personalChatsList.appendChild(noChatsItem);
                             }
                         })
                         .catch(error => {
-                            suggestionsDiv.innerHTML = '<div class="p-3 text-center text-red-500">Bir hata oluştu</div>';
-                            suggestionsDiv.classList.remove('hidden');
+                            console.error('Sohbet listesi yüklenirken hata oluştu:', error);
+                            const personalChatsList = document.getElementById('personalChatsList');
+                            personalChatsList.innerHTML = '<li class="p-3 bg-purple-50 rounded-lg text-red-500 text-center">Sohbet listesi yüklenemedi</li>';
                         });
                 }
 
                 // Sohbet yükleme
                 window.loadChat = function(username) {
-                    fetch(`/Notes/ChatView?targetUsername=${encodeURIComponent(username)}`)
+                    fetch(`/Chat/ChatView?targetUsername=${encodeURIComponent(username)}`)
                         .then(response => response.text())
                         .then(html => {
                             const mainContent = document.getElementById('mainContent');
@@ -482,7 +464,7 @@
                 });
 
                 function searchSchoolGroups(searchTerm) {
-                    fetch(`/Notes/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
+                    fetch(`/Chat/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
                         .then(response => response.json())
                         .then(groups => {
                             const suggestionsDiv = document.getElementById('schoolGroupSuggestions');
@@ -600,24 +582,26 @@
                             return;
                         }
                         
-                        fetch(`/Notes/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
+                        fetch(`/Chat/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
                             .then(response => response.json())
                             .then(groups => {
                                 if (groups && groups.length > 0) {
-                                    const group = groups[0]; // İlk grubu seç
+                                    const group = groups.find(g => g.id === selectedGroupId);
                                     
-                                    // Grup detaylarını orta panelde göster
-                                    const groupChatPanel = document.getElementById('groupChatPanel');
-                                    const mainContent = document.getElementById('mainContent');
-                                    const selectedGroupNameElement = document.getElementById('selectedGroupName');
-                                    
-                                    // Seçilen grubun adını panele aktar
-                                    selectedGroupNameElement.textContent = group.groupName;
-                                    document.getElementById('selectedGroupId').value = group.id;
-                                    
-                                    // Ana içeriği gizle ve grup panelini göster
-                                    mainContent.classList.add('hidden');
-                                    groupChatPanel.classList.remove('hidden');
+                                    if (group) {
+                                        // Grup detaylarını orta panelde göster
+                                        const groupChatPanel = document.getElementById('groupChatPanel');
+                                        const mainContent = document.getElementById('mainContent');
+                                        const selectedGroupNameElement = document.getElementById('selectedGroupName');
+                                        
+                                        // Seçilen grubun adını panele aktar
+                                        selectedGroupNameElement.textContent = group.groupName;
+                                        document.getElementById('selectedGroupId').value = group.id;
+                                        
+                                        // Ana içeriği gizle ve grup panelini göster
+                                        mainContent.classList.add('hidden');
+                                        groupChatPanel.classList.remove('hidden');
+                                    }
                                 } else {
                                     alert('Arama kriterlerine uygun grup bulunamadı.');
                                 }
@@ -671,12 +655,12 @@
                             return;
                         }
                         
-                        fetch('/Notes/JoinSchoolGroup', {
+                        fetch('/Chat/JoinSchoolGroup', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/x-www-form-urlencoded',
                             },
-                            body: `groupId=${selectedGroupId}`
+                            body: `groupId=${encodeURIComponent(selectedGroupId)}`
                         })
                         .then(response => response.json())
                         .then(data => {
@@ -717,8 +701,43 @@
                     });
                 }
 
-                
-                                // Yeni grup eklemek için fonksiyon
+                // Dosya yükleme ve gönderme işlemi
+                async function uploadAndSendFile(file) {
+                    if (!file) return;
+
+                    uploadProgress.classList.remove('hidden');
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const response = await fetch('/Chat/UploadChatFile', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            if (connection.state === "Connected") {
+                                await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
+                                setTimeout(() => {
+                                    cancelFileUpload();
+                                }, 1000);
+                            } else {
+                                alert("Bağlantı hatası. Lütfen sayfayı yenileyin.");
+                                cancelFileUpload();
+                            }
+                        } else {
+                            alert(result.message || "Dosya yüklenemedi.");
+                            cancelFileUpload();
+                        }
+                    } catch (error) {
+                        console.error("Dosya yükleme hatası:", error);
+                        alert("Dosya yüklenirken bir hata oluştu.");
+                        cancelFileUpload();
+                    }
+                }
+
+                // Yeni grup eklemek için fonksiyon
                 function addGroupToSidebar(groupId, groupName) {
                     const groupChatsList = document.getElementById('groupChatsList');
                     

@@ -1,0 +1,309 @@
+@{
+    var currentUsername = User.Identity?.Name ?? "";
+}
+
+<div class="flex flex-col h-[calc(100vh-8rem)]">
+    <!-- Sohbet Başlığı -->
+    <div class="bg-white border-b p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-user-circle text-2xl text-purple-500"></i>
+            <div>
+                <h3 class="font-semibold text-gray-800">@ViewBag.TargetUsername</h3>
+                <p class="text-xs text-gray-500">Çevrimiçi</p>
+            </div>
+        </div>
+        <button onclick="window.parent.closeChat()" class="text-gray-500 hover:text-purple-500 transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Mesaj Alanı -->
+    <div id="messageArea" class="flex-1 bg-gray-50 p-4 overflow-y-auto">
+        <div id="messages" class="space-y-4">
+            @if (ViewBag.ChatHistory != null)
+            {
+                foreach (var chat in ViewBag.ChatHistory)
+                {
+                    if (chat.Messages != null)
+                    {
+                        foreach (var message in chat.Messages)
+                        {
+                            var isCurrentUser = message.SenderUsername == currentUsername;
+                            <div class="flex @(isCurrentUser ? "justify-end" : "justify-start") mb-4">
+                                <div class="@(isCurrentUser ? "bg-purple-500 text-white" : "bg-white text-gray-800") rounded-lg p-3 max-w-[70%] shadow-sm">
+                                    @if (message.IsFile)
+                                    {
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-file text-lg"></i>
+                                            <a href="@message.FileUrl" target="_blank" class="underline hover:no-underline">
+                                                @message.Content.Replace("[Dosya] ", "")
+                                            </a>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="break-words">@message.Content</p>
+                                    }
+                                    <span class="text-xs @(isCurrentUser ? "text-purple-100" : "text-gray-500") block mt-1">
+                                        @message.CreatedAt.ToLocalTime().ToString("HH:mm")
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    }
+                }
+            }
+        </div>
+    </div>
+
+    <!-- Mesaj Yazma Alanı -->
+    <div class="bg-white border-t p-4">
+        <div class="flex gap-2">
+            <input type="file" id="fileInput" class="hidden" />
+            <button type="button" 
+                    onclick="document.getElementById('fileInput').click()"
+                    class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <i class="fas fa-paperclip"></i>
+            </button>
+            <div class="flex-1 relative">
+                <input type="text" 
+                       id="messageInput"
+                       class="w-full border rounded-full px-4 py-2 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
+                       placeholder="Mesajınızı yazın..."
+                       autocomplete="off">
+                <div id="selectedFileInfo" class="hidden absolute -top-10 left-0 right-0 bg-purple-50 text-sm p-2 rounded-lg border border-purple-100 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-file text-purple-500"></i>
+                            <span id="selectedFileName" class="text-gray-600 text-xs truncate max-w-[200px]"></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div id="uploadProgress" class="hidden">
+                                <div class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                            <button type="button" onclick="cancelFileUpload()" class="text-gray-500 hover:text-red-500 p-1">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button type="button"
+                    onclick="sendMessage()"
+                    class="bg-purple-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-purple-600 transition-colors">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.6/signalr.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const currentUsername = '@(User.Identity?.Name ?? "")';
+        const targetUsername = '@(ViewBag.TargetUsername ?? "")';
+        
+        if (!currentUsername || !targetUsername) {
+            console.error("Kullanıcı bilgileri eksik:", { currentUsername, targetUsername });
+            return;
+        }
+        
+        const messageInput = document.getElementById("messageInput");
+        const messagesDiv = document.getElementById("messages");
+        const fileInput = document.getElementById("fileInput");
+        const selectedFileInfo = document.getElementById("selectedFileInfo");
+        const selectedFileName = document.getElementById("selectedFileName");
+        const uploadProgress = document.getElementById("uploadProgress");
+        let selectedFile = null;
+
+        // Dosya seçimi iptal
+        window.cancelFileUpload = function() {
+            fileInput.value = '';
+            selectedFile = null;
+            selectedFileInfo.classList.add('hidden');
+            uploadProgress.classList.add('hidden');
+            messageInput.value = '';
+            console.log('File upload cancelled'); // Debug log
+        };
+
+        // SignalR bağlantısını oluştur
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .configureLogging(signalR.LogLevel.Information)
+            .build();
+
+        // Dosya seçme işlemi
+        fileInput.addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
+
+            console.log('File selected:', file.name);
+
+            // Store the file reference
+            selectedFile = file;
+            
+            // Update UI to show file info
+            selectedFileName.textContent = file.name;
+            messageInput.value = file.name;
+            
+            // Make sure the file info box is visible
+            selectedFileInfo.style.display = 'block';
+            selectedFileInfo.classList.remove('hidden');
+            
+            // Force UI update and ensure visibility
+            setTimeout(() => {
+                // Double-check that the file info is visible
+                if (selectedFileInfo.classList.contains('hidden')) {
+                    selectedFileInfo.classList.remove('hidden');
+                    selectedFileInfo.style.display = 'block';
+                }
+                
+                // Ensure the file name is set in both places
+                selectedFileName.textContent = file.name;
+                messageInput.value = file.name;
+                
+                // Log for debugging
+                console.log('File info visibility check:', selectedFileInfo.style.display, !selectedFileInfo.classList.contains('hidden'));
+                console.log('Selected file name element content:', selectedFileName.textContent);
+                console.log('Message input value:', messageInput.value);
+            }, 100);
+        });
+
+        // Dosya yükleme ve gönderme işlemi
+        async function uploadAndSendFile(file) {
+            if (!file) return;
+
+            uploadProgress.classList.remove('hidden');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/Chat/UploadChatFile', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    if (connection.state === "Connected") {
+                        await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
+                        setTimeout(() => {
+                            cancelFileUpload();
+                        }, 1000);
+                    } else {
+                        alert("Bağlantı hatası. Lütfen sayfayı yenileyin.");
+                        cancelFileUpload();
+                    }
+                } else {
+                    alert(result.message || "Dosya yüklenemedi.");
+                    cancelFileUpload();
+                }
+            } catch (error) {
+                console.error("Dosya yükleme hatası:", error);
+                alert("Dosya yüklenirken bir hata oluştu.");
+                cancelFileUpload();
+            }
+        }
+
+        // Mesaj gönderme fonksiyonu
+        window.sendMessage = async function() {
+            const message = messageInput.value.trim();
+            
+            // Dosya varsa onu gönder
+            if (selectedFile) {
+                await uploadAndSendFile(selectedFile);
+                return;
+            }
+            
+            // Normal mesaj gönderme
+            if (!message) return;
+
+            try {
+                if (connection.state !== "Connected") {
+                    await startConnection();
+                }
+                
+                await connection.invoke("SendMessage", currentUsername, targetUsername, message);
+                messageInput.value = '';
+            } catch (err) {
+                console.error("Error sending message:", err);
+                alert("Mesaj gönderilemedi: " + err.message);
+            }
+        };
+
+        // Enter tuşu ile mesaj gönderme
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Mesaj alma olayını dinle
+        connection.on("ReceiveMessage", (senderUsername, message) => {
+            appendMessage(senderUsername, message, false);
+        });
+
+        // Dosya mesajı alma olayını dinle
+        connection.on("ReceiveFile", (senderUsername, fileName, fileUrl) => {
+            appendMessage(senderUsername, fileName, true, fileUrl);
+        });
+
+        // Mesaj ekleme fonksiyonu
+        function appendMessage(senderUsername, content, isFile, fileUrl = null) {
+            const messageDiv = document.createElement("div");
+            const isCurrentUser = senderUsername === currentUsername;
+            
+            messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+            
+            let messageContent = '';
+            if (isFile) {
+                messageContent = `
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-file text-lg"></i>
+                        <a href="${fileUrl}" target="_blank" class="underline hover:no-underline">
+                            ${content}
+                        </a>
+                    </div>`;
+            } else {
+                messageContent = `<p class="break-words">${content}</p>`;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
+                    ${messageContent}
+                    <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
+                        ${new Date().toLocaleTimeString()}
+                    </span>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // SignalR bağlantısını başlat
+        async function startConnection() {
+            try {
+                if (connection.state === "Disconnected") {
+                    await connection.start();
+                    console.log("SignalR Connected");
+                    await connection.invoke("JoinChat", currentUsername);
+                }
+            } catch (err) {
+                console.error("SignalR Connection Error:", err);
+                setTimeout(startConnection, 5000);
+            }
+        }
+
+        // Sayfa yüklendiğinde bağlantıyı başlat
+        startConnection();
+
+        // Scroll to bottom after loading chat history
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+</script>
