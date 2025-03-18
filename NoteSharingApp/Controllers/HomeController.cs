@@ -10,8 +10,6 @@ namespace NoteSharingApp.Controllers;
 
 public class HomeController : Controller
 {
-
-
     private readonly DatabaseContext _dbContext;
 
     public HomeController(DatabaseContext dbContext)
@@ -34,36 +32,34 @@ public class HomeController : Controller
     {
         if (user != null)
         {
-            // Veritabanýndan kullanýcýyý bul
             var _user = await _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
 
             if (_user == null)
             {
-                ModelState.AddModelError("", "Kullanýcý adý veya þifre hatalý.");
+                ModelState.AddModelError("", "Kullanici adi veya sifre hatali.");
                 return View();
             }
 
-            // Claims oluþtururken veritabanýndan gelen _user nesnesini kullan
             var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, _user.UserId.ToString()), // Veritabanýndan gelen UserId
-            new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanýcý") // Veritabanýndan gelen UserName
-        };
+            {
+                new Claim(ClaimTypes.NameIdentifier, _user.UserId.ToString()),
+                new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanici")
+            };
 
             var identity = new ClaimsIdentity(claims, "Cookies");
             var principal = new ClaimsPrincipal(identity);
 
-            // Kullanýcýyý oturum açmýþ olarak iþaretle
             await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
             {
-                IsPersistent = true, // Cookie kalýcý olsun mu? (Tarayýcý kapandýðýnda silinmez)
-                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7) // 7 gün geçerli
+                IsPersistent = true, 
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7) 
             });
 
             return RedirectToAction("HomePage", "Notes");
         }
         return View();
     }
+
     [HttpGet]
     public IActionResult Register()
     {
@@ -90,7 +86,7 @@ public class HomeController : Controller
 
             if(registered != null)
             {
-                ModelState.AddModelError("Email", "Bu e-posta adresi zaten kullanýlmaktadýr.");
+                ModelState.AddModelError("Email", "Bu e-posta adresi zaten kullanilmaktadir.");
                 return View(user);
             }
             else
