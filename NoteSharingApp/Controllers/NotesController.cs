@@ -113,9 +113,9 @@ namespace NoteSharingApp.Controllers
 
             // Kullanıcı bilgilerini not nesnesine ekle
             note.OwnerId = parsedOwnerId;
-            note.OwnerUsername = user.UserName;          // Artık sorunsuz şekilde alınır
+            note.OwnerUsername = user.UserName;         
 
-            // Veritabanına kaydet
+            // Veritabanına kaydetS
             try
             {
                 var notesCollection = _database.Notes;
