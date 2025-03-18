@@ -333,5 +333,42 @@ namespace NoteSharingApp.Controllers
                 return Json(new { success = false, message = $"Bir hata oluştu: {ex.Message}" });
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserSchoolGroups()
+        {
+            try
+            {
+                if (!User.Identity.IsAuthenticated)
+                {
+                    return Json(new List<object>());
+                }
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId) || !ObjectId.TryParse(userId, out var userObjectId))
+                {
+                    return Json(new List<object>());
+                }
+
+                // Kullanıcının katıldığı grupları bul
+                var userGroups = await _database.SchoolGroups
+                    .Find(g => g.ParticipantIds.Contains(userObjectId))
+                    .ToListAsync();
+
+                var result = userGroups.Select(g => new
+                {
+                    id = g.Id.ToString(),
+                    groupName = g.GroupName,
+                    schoolName = g.SchoolName,
+                    departmentName = g.DepartmentName
+                });
+
+                return Json(result);
+            }
+            catch (Exception ex)
+            {
+                return Json(new List<object>());
+            }
+        }
     }
 }

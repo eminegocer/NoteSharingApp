@@ -11,14 +11,14 @@
             <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="text-md font-semibold text-gray-800 mb-2">Kişisel Sohbetler</h3>
                 <ul id="personalChatsList" class="space-y-2">
-                    <li class="p-3 bg-purple-50 rounded-lg text-gray-500 text-center">
+                        <li class="p-3 bg-purple-50 rounded-lg text-gray-500 text-center">
                         Sohbetler yükleniyor...
-                    </li>
+                        </li>
                 </ul>
             </div>
             
             <div class="bg-gray-50 p-4 rounded-lg">
-            <h3 class="text-md font-semibold text-gray-800 mb-2">Grup Sohbetleri</h3>
+                <h3 class="text-md font-semibold text-gray-800 mb-2">Grup Sohbetleri</h3>
                 <ul id="groupChatsList" class="space-y-2">
                     <li class="p-3 bg-purple-50 rounded-lg text-gray-500 text-center">
                         Henüz sohbet bulunmuyor
@@ -28,9 +28,9 @@
 
             <div class="bg-gray-50 p-4 rounded-lg">
                 <h3 class="text-md font-semibold text-gray-800 mb-2">Okul Grupları</h3>
-                <ul class="space-y-2">
+                <ul id="schoolGroupsList" class="space-y-2">
                     <li class="p-3 bg-purple-50 rounded-lg text-gray-500 text-center">
-                        Henüz sohbet bulunmuyor
+                        Gruplar yükleniyor...
                     </li>
                 </ul>
             </div>
@@ -242,9 +242,9 @@
             <h3 class="text-sm font-semibold text-gray-700">Yeni Grup</h3>
             <div class="space-y-3">
                 <input type="text"
-                        id="groupNameInput"
-                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
-                        placeholder="Grup adı girin...">
+                       id="groupNameInput"
+                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
+                       placeholder="Grup adı girin...">
                 <button onclick="createGroup()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                     <i class="fas fa-users"></i>
                     <span>Grup Oluştur</span>
@@ -272,6 +272,53 @@
                             searchUsers(userSearchInput.value);
                         }, doneTypingInterval);
                     } else {
+                        suggestionsDiv.classList.add('hidden');
+                    }
+                });
+
+                // Kullanıcı arama fonksiyonu
+                function searchUsers(searchTerm) {
+                    fetch(`/Chat/SearchUsers?searchTerm=${encodeURIComponent(searchTerm)}`)
+                        .then(response => response.json())
+                        .then(users => {
+                            const suggestionsDiv = document.getElementById('userSuggestions');
+                            suggestionsDiv.innerHTML = '';
+
+                            if (users && users.length > 0) {
+                                users.forEach(user => {
+                                    const suggestion = document.createElement('div');
+                                    suggestion.className = 'p-3 hover:bg-purple-50 cursor-pointer transition-colors border-b border-gray-100 last:border-0';
+                                    suggestion.innerHTML = `
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-user-circle text-purple-400"></i>
+                                            <span class="text-gray-700">${user}</span>
+                                        </div>
+                                    `;
+                                    suggestion.onclick = () => {
+                                        userSearchInput.value = user;
+                                        suggestionsDiv.classList.add('hidden');
+                                    };
+                                    suggestionsDiv.appendChild(suggestion);
+                                });
+                                suggestionsDiv.classList.remove('hidden');
+                            } else {
+                                const noResult = document.createElement('div');
+                                noResult.className = 'p-3 text-center text-gray-500';
+                                noResult.textContent = 'Sonuç bulunamadı';
+                                suggestionsDiv.appendChild(noResult);
+                                suggestionsDiv.classList.remove('hidden');
+                            }
+                        })
+                        .catch(error => {
+                            const suggestionsDiv = document.getElementById('userSuggestions');
+                            suggestionsDiv.innerHTML = '<div class="p-3 text-center text-red-500">Bir hata oluştu</div>';
+                            suggestionsDiv.classList.remove('hidden');
+                        });
+                }
+
+                // Tıklama olayları
+                document.addEventListener('click', function(e) {
+                    if (!userSearchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
                         suggestionsDiv.classList.add('hidden');
                     }
                 });
@@ -349,15 +396,15 @@
                     fetch(`/Chat/ChatView?targetUsername=${encodeURIComponent(username)}`)
                         .then(response => response.text())
                         .then(html => {
-                            const mainContent = document.getElementById('mainContent');
-                            const chatContent = document.getElementById('chatContent');
+                                const mainContent = document.getElementById('mainContent');
+                                const chatContent = document.getElementById('chatContent');
 
-                            mainContent.classList.add('hidden');
-                            chatContent.innerHTML = html;
-                            chatContent.classList.remove('hidden');
+                                mainContent.classList.add('hidden');
+                                chatContent.innerHTML = html;
+                                chatContent.classList.remove('hidden');
 
-                            // SignalR bağlantısını başlat
-                            startSignalRConnection(username);
+                                // SignalR bağlantısını başlat
+                                startSignalRConnection(username);
                         })
                         .catch(error => {
                             alert('Sohbet yüklenirken bir hata oluştu.');
@@ -401,7 +448,7 @@
                                 
                                 if (message) {
                                     connection.invoke("SendMessage", '@User.Identity.Name', targetUsername, message);
-                                    messageInput.value = '';
+                                        messageInput.value = '';
                                 }
                             };
 
@@ -455,13 +502,6 @@
                     chatContent.classList.add('hidden');
                     mainContent.classList.remove('hidden');
                 };
-
-                // Tıklama olayları
-                document.addEventListener('click', function(e) {
-                    if (!userSearchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-                        suggestionsDiv.classList.add('hidden');
-                    }
-                });
 
                 function searchSchoolGroups(searchTerm) {
                     fetch(`/Chat/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
@@ -739,54 +779,88 @@
 
                 // Yeni grup eklemek için fonksiyon
                 function addGroupToSidebar(groupId, groupName) {
-                    const groupChatsList = document.getElementById('groupChatsList');
+                    const schoolGroupsList = document.getElementById('schoolGroupsList');
                     
-                    // Eğer "Henüz sohbet bulunmuyor" mesajı varsa, onu kaldır
-                    if (groupChatsList.innerHTML.includes('Henüz sohbet bulunmuyor')) {
-                        groupChatsList.innerHTML = '';
+                    // Eğer "Henüz okul grubu bulunmuyor" mesajı varsa, onu kaldır
+                    if (schoolGroupsList.innerHTML.includes('Henüz okul grubu bulunmuyor')) {
+                        schoolGroupsList.innerHTML = '';
                     }
                     
-                    // Yeni grup öğesini oluştur
-                    const groupItem = document.createElement('li');
-                    groupItem.setAttribute('onclick', `loadGroupChat('${groupId}')`);
-                    groupItem.className = 'p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2';
-                    groupItem.innerHTML = `
-                        <i class="fas fa-users text-purple-400"></i>
-                        <span>${groupName}</span>
-                    `;
+                    // Grup zaten eklenmiş mi kontrol et
+                    const existingGroup = Array.from(schoolGroupsList.querySelectorAll('li')).find(group => 
+                        group.querySelector('span') && group.querySelector('span').textContent === groupName
+                    );
                     
-                    // Listeye ekle
-                    groupChatsList.appendChild(groupItem);
+                    if (!existingGroup) {
+                        const groupItem = document.createElement('li');
+                        groupItem.className = 'p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2';
+                        groupItem.onclick = () => loadGroupChat(groupId, groupName);
+                        groupItem.innerHTML = `
+                            <i class="fas fa-users text-purple-400"></i>
+                            <span>${groupName}</span>
+                        `;
+                        schoolGroupsList.appendChild(groupItem);
+                    }
                 }
 
                 // Grup sohbetini yüklemek için yeni fonksiyon
-                function loadGroupChat(groupId) {
-                    // Orta panelde grup sohbeti göstermek için gerekli kod
-                    fetch(`/Notes/GetGroup?searchTerm=${groupId}`)
+                function loadGroupChat(groupId, groupName) {
+                    // Ana içeriği gizle ve grup panelini göster
+                    const mainContent = document.getElementById('mainContent');
+                    const chatContent = document.getElementById('chatContent');
+                    const groupChatPanel = document.getElementById('groupChatPanel');
+                    
+                    mainContent.classList.add('hidden');
+                    chatContent.classList.add('hidden');
+                    groupChatPanel.classList.remove('hidden');
+                    
+                    // Grup adını panele yaz
+                    document.getElementById('selectedGroupName').textContent = groupName;
+                    document.getElementById('selectedGroupId').value = groupId;
+                    
+                    // Gruba katıldığınız için butonun durumunu güncelle
+                    const joinGroupBtn = document.getElementById('joinGroupBtn');
+                    joinGroupBtn.textContent = 'Gruba Katıldınız';
+                    joinGroupBtn.disabled = true;
+                    joinGroupBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    joinGroupBtn.classList.add('bg-gray-400');
+                    joinGroupBtn.classList.remove('hover:scale-105');
+                }
+
+                // Kullanıcının katıldığı okul gruplarını sol panelde göstermek için fonksiyon
+                function loadSchoolGroups() {
+                    fetch('/Chat/GetUserSchoolGroups')
                         .then(response => response.json())
                         .then(groups => {
+                            const schoolGroupsList = document.getElementById('schoolGroupsList');
+                            schoolGroupsList.innerHTML = '';
+
                             if (groups && groups.length > 0) {
-                                const group = groups.find(g => g.id === groupId);
-                                
-                                if (group) {
-                                    // Grup detaylarını orta panelde göster
-                                    const groupChatPanel = document.getElementById('groupChatPanel');
-                                    const mainContent = document.getElementById('mainContent');
-                                    const selectedGroupNameElement = document.getElementById('selectedGroupName');
-                                    
-                                    // Seçilen grubun adını panele aktar
-                                    selectedGroupNameElement.textContent = group.groupName;
-                                    document.getElementById('selectedGroupId').value = group.id;
-                                    
-                                    // Ana içeriği gizle ve grup panelini göster
-                                    mainContent.classList.add('hidden');
-                                    groupChatPanel.classList.remove('hidden');
-                                }
+                                groups.forEach(group => {
+                                    const groupItem = document.createElement('li');
+                                    groupItem.className = 'p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer flex items-center gap-2';
+                                    groupItem.onclick = () => loadGroupChat(group.id, group.groupName);
+                                    groupItem.innerHTML = `
+                                        <i class="fas fa-users text-purple-400"></i>
+                                        <span>${group.groupName}</span>
+                                    `;
+                                    schoolGroupsList.appendChild(groupItem);
+                                });
+                            } else {
+                                const noGroupsItem = document.createElement('li');
+                                noGroupsItem.className = 'p-3 bg-purple-50 rounded-lg text-gray-500 text-center';
+                                noGroupsItem.textContent = 'Henüz okul grubu bulunmuyor';
+                                schoolGroupsList.appendChild(noGroupsItem);
                             }
                         })
                         .catch(error => {
-                            alert('Grup sohbeti yüklenirken bir hata oluştu.');
+                            console.error('Okul grupları yüklenirken hata oluştu:', error);
+                            const schoolGroupsList = document.getElementById('schoolGroupsList');
+                            schoolGroupsList.innerHTML = '<li class="p-3 bg-purple-50 rounded-lg text-red-500 text-center">Okul grupları yüklenemedi</li>';
                         });
                 }
+
+                // Sayfa yüklendiğinde okul gruplarını yükle
+                loadSchoolGroups();
             });
         </script>
