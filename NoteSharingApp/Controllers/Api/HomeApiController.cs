@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -6,111 +7,74 @@ using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
 
-namespace NoteSharingApp.Controllers.Api
+namespace NoteSharingApp.Controllers;
+
+[ApiController]
+[Route("api/home")]
+public class HomeApiController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class HomeApiController : ControllerBase
+    private readonly DatabaseContext _dbContext;
+
+    public HomeApiController(DatabaseContext dbContext)
     {
-        private readonly DatabaseContext _dbContext;
+        _dbContext = dbContext;
+    }
 
-        public HomeApiController(DatabaseContext dbContext)
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] User user)
+    {
+        if (user == null)
         {
-            _dbContext = dbContext;
+            return BadRequest(new { message = "Geçersiz giriş verileri." });
         }
 
-        [HttpGet("Index")]
-        public IActionResult Index()
+        var _user = await _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
+
+        if (_user == null)
         {
-            return Ok(new { message = "Welcome to the API!" });
+            return Unauthorized(new { message = "Kullanıcı adı veya şifre hatalı." });
         }
 
-        [HttpGet("Login")]
-        public IActionResult Login()
+        var claims = new List<Claim>
         {
-            return Ok(new { message = "Please provide login credentials." });
+            new Claim(ClaimTypes.NameIdentifier, _user.UserId.ToString()),
+            new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanıcı")
+        };
+
+        var identity = new ClaimsIdentity(claims, "Cookies");
+        var principal = new ClaimsPrincipal(identity);
+
+        await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
+        {
+            IsPersistent = true,
+            ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+        });
+
+        return Ok(new { message = "Giriş başarılı.", userId = _user.UserId, userName = _user.UserName });
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] User user)
+    {
+        if (user == null)
+        {
+            return BadRequest(new { message = "Geçersiz kayıt verileri." });
         }
 
-        [HttpPost("Login")]
-        public async Task<IActionResult> Login([FromBody] User user)
+        var existingUser = await _dbContext.Users.Find(x => x.Email == user.Email).FirstOrDefaultAsync();
+
+        if (existingUser != null)
         {
-            if (user != null)
-            {
-                var _user = await _dbContext.Users.Find(x => x.Password == user.Password && x.UserName == user.UserName).FirstOrDefaultAsync();
-
-                if (_user == null)
-                {
-                    return Unauthorized(new { message = "Kullanici adi veya sifre hatali." });
-                }
-
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, _user.UserId.ToString()),
-                    new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanici")
-                };
-
-                var identity = new ClaimsIdentity(claims, "Cookies");
-                var principal = new ClaimsPrincipal(identity);
-
-                await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                });
-
-                return Ok(new { message = "Login successful." });
-            }
-            return BadRequest(new { message = "Invalid user data." });
+            return Conflict(new { message = "Bu e-posta adresi zaten kullanılmaktadır." });
         }
 
-        [HttpGet("Register")]
-        public IActionResult Register()
-        {
-            return Ok(new { message = "Please provide registration details." });
-        }
+        await _dbContext.Users.InsertOneAsync(user);
+        return Ok(new { message = "Kayıt başarılı.", userId = user.UserId });
+    }
 
-        [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] User user)
-        {
-            if (user == null)
-            {
-                return BadRequest(new { message = "User data is null." });
-            }
-
-            User _user = user;
-            _user.UserName = user.UserName;
-            _user.Email = user.Email;
-            _user.Password = user.Password;
-            _user.SchoolName = user.SchoolName;
-
-            if (ModelState.IsValid)
-            {
-                var registered = await _dbContext.Users.Find(x => x.Email == user.Email).FirstOrDefaultAsync();
-
-                if (registered != null)
-                {
-                    return Conflict(new { message = "Bu e-posta adresi zaten kullanilmaktadir." });
-                }
-                else
-                {
-                    await _dbContext.Users.InsertOneAsync(_user);
-                    return Ok(new { message = "Registration successful." });
-                }
-            }
-            return BadRequest(ModelState);
-        }
-
-        [HttpGet("Privacy")]
-        public IActionResult Privacy()
-        {
-            return Ok(new { message = "Privacy details here." });
-        }
-
-        [HttpGet("Error")]
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return StatusCode(500, new { message = "An error occurred.", requestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
+    [HttpGet("error")]
+    public IActionResult Error()
+    {
+        return Problem(detail: "Sunucu hatası oluştu.", statusCode: 500);
     }
 }
