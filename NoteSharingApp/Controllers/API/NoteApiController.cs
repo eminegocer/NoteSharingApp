@@ -1,3 +1,5 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -5,12 +7,11 @@ using NoteSharingApp.Models;
 using NoteSharingApp.Repository;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using System.IO;
 
-namespace NoteSharingApp.Controllers.Api
+namespace NoteSharingApp.Controllers
 {
+    [Route("api/notes")]
     [ApiController]
-    [Route("api/[controller]")]
     public class NotesApiController : ControllerBase
     {
         private readonly DatabaseContext _database;
@@ -20,44 +21,20 @@ namespace NoteSharingApp.Controllers.Api
             _database = database;
         }
 
-        [HttpGet("HomePage")]
-        public async Task<IActionResult> HomePage()
+        [HttpGet]
+        public async Task<IActionResult> GetNotes()
         {
-            var notes = _database.Notes
-                .Find(x => true)
-                .SortByDescending(x => x.CreatedAt)
-                .ToList();
-
+            var notes = await _database.Notes.Find(_ => true).SortByDescending(x => x.CreatedAt).ToListAsync();
             return Ok(notes);
         }
 
-        [HttpGet("AddNote")]
-        public async Task<IActionResult> AddNote()
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> AddNote([FromForm] Note note, [FromForm] IFormFile PdfFile)
         {
-            if (!User.Identity.IsAuthenticated)
-            {
-                return Unauthorized(new { message = "Lütfen giriş yapın." });
-            }
-            var categories = await _database.Categories.Find(_ => true).ToListAsync();
-            return Ok(new { categories, userName = User.Identity.Name });
-        }
-
-        [HttpPost("AddNote")]
-        public async Task<IActionResult> AddNote([FromBody] Note note, [FromForm] IFormFile PdfFile)
-        {
-            var categories = await _database.Categories.Find(_ => true).ToListAsync();
-
             if (PdfFile == null || PdfFile.Length == 0)
             {
                 return BadRequest(new { message = "Lütfen bir PDF dosyası seçin." });
-            }
-
-            ModelState.Remove("PdfFilePath");
-            ModelState.Remove("OwnerUsername");
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
             }
 
             try
@@ -80,19 +57,13 @@ namespace NoteSharingApp.Controllers.Api
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Dosya yüklenirken bir hata oluştu: " + ex.Message });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Dosya yüklenirken bir hata oluştu.", error = ex.Message });
             }
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId) || !ObjectId.TryParse(userId, out var parsedOwnerId))
             {
-                return BadRequest(new { message = "Kullanıcı kimliği alınamadı." });
-            }
-
-            if (!ObjectId.TryParse(userId, out var parsedOwnerId))
-            {
-                return BadRequest(new { message = "Geçersiz kullanıcı kimliği." });
+                return Unauthorized(new { message = "Geçersiz kullanıcı kimliği." });
             }
 
             var user = await _database.Users.Find(u => u.UserId == parsedOwnerId).FirstOrDefaultAsync();
@@ -106,15 +77,13 @@ namespace NoteSharingApp.Controllers.Api
 
             try
             {
-                var notesCollection = _database.Notes;
-                await notesCollection.InsertOneAsync(note);
+                await _database.Notes.InsertOneAsync(note);
+                return CreatedAtAction(nameof(GetNotes), new { id = note.NoteId }, note);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Veritabanına kaydedilirken bir hata oluştu: " + ex.Message });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Veritabanına kaydedilirken bir hata oluştu.", error = ex.Message });
             }
-
-            return Ok(new { message = "Not başarıyla eklendi." });
         }
     }
 }
