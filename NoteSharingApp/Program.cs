@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using NoteSharingApp.Repository;
 using NoteSharingApp.Hubs;
+using Microsoft.AspNetCore.Http.Features;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,16 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader()
               .WithExposedHeaders("Content-Disposition", "Content-Length");
+    });
+
+    // Mobil uygulama için CORS politikası
+    options.AddPolicy("MobileAppPolicy", builder =>
+    {
+        builder.WithOrigins("*") // Tüm originlere izin ver
+               .AllowAnyMethod()
+               .AllowAnyHeader()
+               .WithExposedHeaders("Content-Disposition", "Content-Length") // Dosya indirme için gerekli headerlar
+               .SetIsOriginAllowed(_ => true);
     });
 });
 
@@ -83,11 +94,30 @@ else
     app.UseHsts();
 }
 
+// HTTPS yönlendirmesini geçici olarak kaldırıyoruz
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseCors("AllowAll"); // CORS burada aktifleşiyor
+// CORS middleware'ini ekle
+app.UseCors(policy =>
+{
+    policy.SetIsOriginAllowed(origin => true) // Tüm originlere izin ver
+          .AllowAnyHeader()
+          .AllowAnyMethod()
+          .AllowCredentials();
+});
+
+// API'lar için özel CORS politikası
+app.Map("/api", api =>
+{
+    api.UseCors(policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .WithExposedHeaders("Content-Disposition", "Content-Length"));
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
