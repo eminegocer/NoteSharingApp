@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
@@ -52,11 +52,19 @@
                 footer a:hover {
                     text-decoration: underline;
                 }
+
+        .navbar {
+            background-color: transparent;
+        }
+
+        .btn-primary {
+            border: none;
+        }
     </style>
 </head>
 <body>
     <!--<!-- Navbar -->
-    <nav class="bg-white bg-opacity-20 shadow-sm h-16">
+    <nav class="bg-white bg-opacity-20 shadow-sm h-16 navbar">
         <!-- Yüksekliği artırdık (h-16) ve saydamlık ekledik -->
         <div class="max-w-7xl mx-auto px-4 h-full">
             <div class="flex justify-between items-center h-full">
@@ -70,7 +78,7 @@
                 <!-- Navigasyon Linkleri -->
                 <div class="flex items-center space-x-4">
                     <a href="/Profile" class="text-gray-600 hover:text-blue-700 text-sm">Profil</a>
-                    <a asp-controller="Home" asp-action="Index" class=" btn bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors">
+                    <a asp-controller="Home" asp-action="Index" class=" btn bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors btn-primary">
                         Çıkış
                     </a>
 
