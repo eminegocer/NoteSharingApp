@@ -1,9 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
 
@@ -11,6 +16,7 @@ namespace NoteSharingApp.Controllers;
 
 [ApiController]
 [Route("api/home")]
+[Authorize]
 public class HomeApiController : ControllerBase
 {
     private readonly DatabaseContext _dbContext;
@@ -20,6 +26,7 @@ public class HomeApiController : ControllerBase
         _dbContext = dbContext;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] User user)
     {
@@ -41,6 +48,7 @@ public class HomeApiController : ControllerBase
             new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanıcı")
         };
 
+        // Cookie kimlik doğrulama için - Web uygulaması için
         var identity = new ClaimsIdentity(claims, "Cookies");
         var principal = new ClaimsPrincipal(identity);
 
@@ -50,7 +58,28 @@ public class HomeApiController : ControllerBase
             ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
         });
 
-        return Ok(new { message = "Giriş başarılı.", userId = _user.UserId, userName = _user.UserName });
+        // JWT token üretimi - Mobil uygulama için
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MySuperStrongSecretKeyForJWTAuth123456789")); // En az 32 karakter
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: "NoteSharingApp",
+            audience: "NoteSharingAppMobile",
+            claims: claims,
+            expires: DateTime.Now.AddDays(7),
+            signingCredentials: creds
+        );
+
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+        // Hem cookie kimlik doğrulama hem de JWT token dönüş
+        return Ok(new
+        {
+            message = "Giriş başarılı.",
+            userId = _user.UserId,
+            userName = _user.UserName,
+            token = tokenString // JWT token mobil uygulama için eklendi
+        });
     }
 
     [HttpPost("register")]
