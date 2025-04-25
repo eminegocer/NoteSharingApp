@@ -130,13 +130,20 @@
 
         <!-- Sohbet içeriği (başlangıçta gizli) -->
         <div id="chatContent" class="hidden h-full">
+            <div class="bg-purple-100 text-purple-800 p-3 rounded-t-lg flex justify-between items-center mb-4">
+                <h4 id="chatTargetUsername" class="font-bold text-lg"></h4>
+                <button id="closePersonalChatBtn" class="text-purple-600 hover:text-purple-800 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
             <!-- Sohbet içeriği buraya yüklenecek -->
+            <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 mb-4"></div>
             <div class="flex items-center gap-2 mt-4">
                 <input type="file" id="fileInput" class="hidden" />
                 <label for="fileInput" class="cursor-pointer">
                     <i class="fas fa-paperclip text-gray-500 hover:text-purple-600"></i>
                 </label>
-                <input type="text" placeholder="Mesajınızı yazın..." class="flex-1 p-2 border rounded-lg" />
+                <input type="text" id="messageInput" placeholder="Mesajınızı yazın..." class="flex-1 p-2 border rounded-lg" />
                 <button id="sendButton" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300">
                     Gönder
                 </button>
@@ -148,10 +155,17 @@
             <div class="bg-white rounded-lg shadow-lg p-4 mb-6 border-l-4 border-purple-500">
                 <div class="bg-purple-100 text-purple-800 p-3 rounded-t-lg flex justify-between items-center">
                     <h4 id="selectedGroupName" class="font-bold text-lg"></h4>
-                    <span class="text-sm bg-purple-200 px-2 py-1 rounded-full">Grup Sohbeti</span>
+                    <button onclick="closeGroupChat()" class="text-purple-600 hover:text-purple-800 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
                 
                 <div class="p-3">
+                    <!-- Mesajlar bölümü -->
+                    <div id="groupMessages" class="mb-4 max-h-[400px] overflow-y-auto">
+                        <!-- Mesajlar buraya yüklenecek -->
+                    </div>
+
                     <div class="welcome-message">
                         <div class="bg-blue-50 text-blue-700 p-4 rounded-lg mb-4 flex items-start">
                             <i class="fas fa-info-circle mr-3 mt-1 text-blue-500"></i>
@@ -174,6 +188,32 @@
                             <i class="fas fa-times mr-2"></i>Vazgeç
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aktif Grup Sohbet Paneli (başlangıçta gizli) -->
+        <div id="activeGroupChatPanel" class="hidden h-full flex flex-col">
+            <div class="bg-purple-100 text-purple-800 p-3 rounded-t-lg flex justify-between items-center">
+                <h4 id="activeGroupName" class="font-bold text-lg"></h4>
+                <button id="closeGroupChatBtn" class="text-purple-600 hover:text-purple-800 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="activeGroupMessages" class="flex-1 overflow-y-auto p-4 bg-gray-50">
+                <!-- Mesajlar buraya yüklenecek -->
+            </div>
+            <div class="p-4 border-t bg-white">
+                <div class="flex items-center gap-2">
+                    <input type="text" id="groupMessageInput" placeholder="Mesajınızı yazın..." class="flex-1 p-2 border rounded-lg focus:ring-purple-400 focus:border-purple-400" />
+                    <button id="sendGroupMessageBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300">
+                        Gönder
+                    </button>
+                    <!-- İsteğe bağlı: Dosya yükleme butonu -->
+                    <input type="file" id="groupFileInput" class="hidden" />
+                    <label for="groupFileInput" class="cursor-pointer text-gray-500 hover:text-purple-600 p-2">
+                        <i class="fas fa-paperclip"></i>
+                    </label>
                 </div>
             </div>
         </div>
@@ -254,6 +294,35 @@
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
         <script>
+            // SignalR bağlantı değişkeni
+            let signalRConnection = null;
+            let currentActiveGroupId = null;
+
+            // Kullanıcı renkleri için nesne ve renk paleti
+            let userColors = {};
+            const chatColorPalette = [
+                { bg: 'bg-blue-200', text: 'text-blue-800', textLight: 'text-blue-600' },
+                { bg: 'bg-green-200', text: 'text-green-800', textLight: 'text-green-600' },
+                { bg: 'bg-rose-200', text: 'text-rose-800', textLight: 'text-rose-600' },
+                { bg: 'bg-amber-200', text: 'text-amber-800', textLight: 'text-amber-600' },
+                { bg: 'bg-violet-200', text: 'text-violet-800', textLight: 'text-violet-600' },
+                { bg: 'bg-teal-200', text: 'text-teal-800', textLight: 'text-teal-600' },
+                { bg: 'bg-fuchsia-200', text: 'text-fuchsia-800', textLight: 'text-fuchsia-600' },
+                { bg: 'bg-sky-200', text: 'text-sky-800', textLight: 'text-sky-600' },
+                { bg: 'bg-lime-200', text: 'text-lime-800', textLight: 'text-lime-600' },
+                { bg: 'bg-purple-200', text: 'text-purple-800', textLight: 'text-purple-600' } // Default/fallback
+            ];
+            let nextColorIndex = 0;
+
+            // Kullanıcıya renk atayan fonksiyon
+            function getUserColor(username) {
+                if (!userColors[username]) {
+                    userColors[username] = chatColorPalette[nextColorIndex % chatColorPalette.length];
+                    nextColorIndex++;
+                }
+                return userColors[username];
+            }
+
             document.addEventListener('DOMContentLoaded', function () {
                 let typingTimer;
                 const doneTypingInterval = 300;
@@ -396,15 +465,56 @@
                     fetch(`/Chat/ChatView?targetUsername=${encodeURIComponent(username)}`)
                         .then(response => response.text())
                         .then(html => {
-                                const mainContent = document.getElementById('mainContent');
-                                const chatContent = document.getElementById('chatContent');
+                            const mainContent = document.getElementById('mainContent');
+                            const chatContent = document.getElementById('chatContent');
+                            const chatHeader = document.createElement('div');
+                            chatHeader.className = 'bg-purple-100 text-purple-800 p-3 rounded-t-lg flex justify-between items-center mb-4';
+                            chatHeader.innerHTML = `
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center">
+                                        <i class="fas fa-user text-purple-500 text-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-lg">${username}</h4>
+                                        <span class="text-sm text-purple-600">Çevrimiçi</span>
+                                    </div>
+                                </div>
+                                <button id="closePersonalChatBtn" class="text-purple-600 hover:text-purple-800 transition-colors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            `;
 
-                                mainContent.classList.add('hidden');
-                                chatContent.innerHTML = html;
-                                chatContent.classList.remove('hidden');
+                            mainContent.classList.add('hidden');
+                            chatContent.innerHTML = '';
+                            chatContent.appendChild(chatHeader);
 
-                                // SignalR bağlantısını başlat
-                                startSignalRConnection(username);
+                            // HTML içeriğinden gereksiz kullanıcı adını kaldır
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = html;
+                            const userInfoDiv = tempDiv.querySelector('.flex.items-center');
+                            if (userInfoDiv) {
+                                userInfoDiv.remove();
+                            }
+                            
+                            chatContent.insertAdjacentHTML('beforeend', tempDiv.innerHTML);
+                            chatContent.classList.remove('hidden');
+
+                            // Çarpı butonuna tıklama olayını ekle
+                            document.getElementById('closePersonalChatBtn').addEventListener('click', function() {
+                                mainContent.classList.remove('hidden');
+                                chatContent.classList.add('hidden');
+                                chatContent.innerHTML = '';
+                                
+                                // SignalR bağlantısını kapat
+                                if (signalRConnection && signalRConnection.state === "Connected") {
+                                    signalRConnection.stop().catch(function (err) {
+                                        console.error('SignalR bağlantısı kapatılırken hata:', err);
+                                    });
+                                }
+                            });
+
+                            // SignalR bağlantısını başlat
+                            startSignalRConnection(username);
                         })
                         .catch(error => {
                             alert('Sohbet yüklenirken bir hata oluştu.');
@@ -493,15 +603,57 @@
                     }
                 };
 
-                // Global closeChat fonksiyonu
-                window.closeChat = function() {
+                // Çarpı butonuna tıklama olayını ekle
+                document.getElementById('closeGroupChatBtn').addEventListener('click', function() {
+                    const mainContent = document.getElementById('mainContent');
+                    const groupChatPanel = document.getElementById('groupChatPanel');
+                    const activeGroupChatPanel = document.getElementById('activeGroupChatPanel');
+                    const chatContent = document.getElementById('chatContent');
+                    
+                    // Tüm sohbet panellerini gizle
+                    groupChatPanel.classList.add('hidden');
+                    activeGroupChatPanel.classList.add('hidden');
+                    chatContent.classList.add('hidden');
+                    
+                    // Ana sayfayı göster
+                    mainContent.classList.remove('hidden');
+                    
+                    // Aktif grup ID'sini temizle
+                    currentActiveGroupId = null;
+                    
+                    // Mesaj içeriğini temizle
+                    document.getElementById('activeGroupMessages').innerHTML = '';
+                    
+                    // SignalR bağlantısını gruptan çıkar
+                    if (signalRConnection && signalRConnection.state === "Connected") {
+                        signalRConnection.invoke("LeaveGroup", currentActiveGroupId).catch(function (err) {
+                            console.error(err);
+                        });
+                    }
+                });
+
+                // Kişisel sohbet kapatma butonu
+                document.getElementById('closePersonalChatBtn').addEventListener('click', function() {
                     const mainContent = document.getElementById('mainContent');
                     const chatContent = document.getElementById('chatContent');
                     
-                    chatContent.innerHTML = '';
+                    // Sohbet panelini gizle
                     chatContent.classList.add('hidden');
+                    
+                    // Ana sayfayı göster
                     mainContent.classList.remove('hidden');
-                };
+                    
+                    // Mesaj içeriğini temizle
+                    document.getElementById('messages').innerHTML = '';
+                    document.getElementById('messageInput').value = '';
+                    
+                    // SignalR bağlantısını kapat (isteğe bağlı)
+                    if (signalRConnection && signalRConnection.state === "Connected") {
+                        signalRConnection.stop().catch(function (err) {
+                            console.error('SignalR bağlantısı kapatılırken hata:', err);
+                        });
+                    }
+                });
 
                 function searchSchoolGroups(searchTerm) {
                     fetch(`/Chat/GetGroup?searchTerm=${encodeURIComponent(searchTerm)}`)
@@ -689,6 +841,7 @@
                     joinGroupBtn.addEventListener('click', function() {
                         // Seçilen gruba katıl
                         const selectedGroupId = document.getElementById('selectedGroupId').value;
+                        const groupName = document.getElementById('selectedGroupName').textContent; // Grup adını al
                         
                         if (!selectedGroupId) {
                             alert('Lütfen bir grup seçin.');
@@ -705,8 +858,6 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                alert(data.message);
-                                
                                 // Başarılı olursa butonu güncelle
                                 joinGroupBtn.textContent = 'Gruba Katıldınız';
                                 joinGroupBtn.disabled = true;
@@ -714,8 +865,17 @@
                                 joinGroupBtn.classList.add('bg-gray-400');
                                 joinGroupBtn.classList.remove('hover:scale-105');
                                 
-                                // Sağ paneldeki grup listesine yeni grubu ekle
+                                // Sol paneldeki grup listesine yeni grubu ekle
                                 addGroupToSidebar(data.groupId, data.groupName);
+                                
+                                // Grup adını tıklanabilir yap ve click event'i ekle
+                                const groupNameElement = document.getElementById('selectedGroupName');
+                                groupNameElement.classList.add('cursor-pointer', 'hover:underline');
+                                groupNameElement.onclick = () => displayGroupChat(data.groupId, data.groupName);
+                                
+                                // "Vazgeç" butonunu gizle veya kaldır (isteğe bağlı)
+                                // cancelGroupBtn.classList.add('hidden');
+
                             } else {
                                 alert('Hata: ' + data.message);
                             }
@@ -803,28 +963,273 @@
                     }
                 }
 
-                // Grup sohbetini yüklemek için yeni fonksiyon
+                // Grup sohbetini yüklemek için GÜNCELLENMİŞ fonksiyon (Sol menüden tıklanınca çalışır)
                 function loadGroupChat(groupId, groupName) {
-                    // Ana içeriği gizle ve grup panelini göster
+                    // Bu fonksiyon artık doğrudan displayGroupChat'i çağıracak
+                    displayGroupChat(groupId, groupName);
+                }
+
+                // Grup mesajlarını yüklemek için GÜNCELLENMİŞ fonksiyon
+                function loadGroupMessages(groupId) {
+                    fetch(`/Chat/GetGroupMessages?groupId=${encodeURIComponent(groupId)}`)
+                        .then(response => response.json())
+                        .then(messages => {
+                            const messagesDiv = document.getElementById('activeGroupMessages');
+                            messagesDiv.innerHTML = '';
+
+                            if (messages && messages.length > 0) {
+                                messages.forEach(message => {
+                                    const isCurrentUser = message.senderUsername === '@User.Identity.Name';
+                                    const userColor = getUserColor(message.senderUsername);
+                                    const messageDiv = document.createElement('div');
+                                    messageDiv.className = `w-full flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} mb-3`;
+
+                                    // Baloncuk ve içerik konteyneri
+                                    const bubbleContainer = document.createElement('div');
+                                    bubbleContainer.className = `max-w-[75%]`;
+
+                                    // Mesaj Baloncuğu
+                                    const messageBubble = document.createElement('div');
+                                    let bubbleBaseClasses = 'rounded-lg py-2 px-3 shadow-sm inline-block';
+                                    messageBubble.className = `${bubbleBaseClasses} ${userColor.bg} ${userColor.text}`;
+
+                                    // Gönderen Adı (Mesaj balonunun içinde)
+                                    const senderNameSpan = document.createElement('div');
+                                    senderNameSpan.className = `text-xs font-semibold mb-1 ${userColor.textLight}`; 
+                                    senderNameSpan.textContent = message.senderUsername;
+                                    messageBubble.appendChild(senderNameSpan);
+
+                                    // Mesaj İçeriği
+                                    const messageContent = document.createElement('p');
+                                    messageContent.className = "break-words text-sm";
+                                    messageContent.textContent = message.content;
+                                    messageBubble.appendChild(messageContent);
+
+                                    // Zaman Damgası
+                                    const timestampSpan = document.createElement('span');
+                                    timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
+                                    timestampSpan.textContent = new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    messageBubble.appendChild(timestampSpan);
+
+                                    // Baloncuğu, baloncuk konteynerine ekle
+                                    bubbleContainer.appendChild(messageBubble);
+                                    
+                                    // Baloncuk konteynerini ana konteynere ekle
+                                    messageDiv.appendChild(bubbleContainer);
+                                    messagesDiv.appendChild(messageDiv);
+                                });
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            } else {
+                                const noMessages = document.createElement('div');
+                                noMessages.className = 'text-center text-gray-500 p-4';
+                                noMessages.textContent = 'Henüz mesaj yok.';
+                                messagesDiv.appendChild(noMessages);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Grup mesajları yüklenirken hata oluştu:', error);
+                            const messagesDiv = document.getElementById('activeGroupMessages');
+                            messagesDiv.innerHTML = '<div class="text-center text-red-500 p-4">Mesajlar yüklenemedi.</div>';
+                        });
+                }
+
+                // YENİ: Aktif grup sohbet panelini gösteren fonksiyon
+                async function displayGroupChat(groupId, groupName) {
                     const mainContent = document.getElementById('mainContent');
                     const chatContent = document.getElementById('chatContent');
                     const groupChatPanel = document.getElementById('groupChatPanel');
+                    const activeGroupChatPanel = document.getElementById('activeGroupChatPanel');
                     
+                    // Diğer panelleri gizle
                     mainContent.classList.add('hidden');
                     chatContent.classList.add('hidden');
-                    groupChatPanel.classList.remove('hidden');
+                    groupChatPanel.classList.add('hidden');
                     
-                    // Grup adını panele yaz
-                    document.getElementById('selectedGroupName').textContent = groupName;
-                    document.getElementById('selectedGroupId').value = groupId;
+                    // Aktif grup panelini göster
+                    activeGroupChatPanel.classList.remove('hidden');
                     
-                    // Gruba katıldığınız için butonun durumunu güncelle
-                    const joinGroupBtn = document.getElementById('joinGroupBtn');
-                    joinGroupBtn.textContent = 'Gruba Katıldınız';
-                    joinGroupBtn.disabled = true;
-                    joinGroupBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
-                    joinGroupBtn.classList.add('bg-gray-400');
-                    joinGroupBtn.classList.remove('hover:scale-105');
+                    // Grup adını yaz
+                    document.getElementById('activeGroupName').textContent = groupName;
+                    currentActiveGroupId = groupId; // Aktif grup ID'sini sakla
+                    
+                    // Mesajları yükle
+                    loadGroupMessages(groupId);
+                    
+                    // SignalR bağlantısını kur ve gruba katıl
+                    await ensureSignalRConnection();
+                    if (signalRConnection && signalRConnection.state === "Connected") {
+                        try {
+                            await signalRConnection.invoke("JoinGroup", groupId);
+                        } catch (err) {
+                            console.error(`Failed to join group ${groupId}:`, err);
+                            alert("Grup sohbetine bağlanırken bir hata oluştu.");
+                            closeGroupChat(); // Hata durumunda paneli kapat
+                            return;
+                        }
+                    }
+                    
+                    // Grup mesajı gönderme butonunu ayarla
+                    const sendBtn = document.getElementById('sendGroupMessageBtn');
+                    const messageInput = document.getElementById('groupMessageInput');
+                    
+                    // Önceki event listener'ları temizle (varsa)
+                    sendBtn.replaceWith(sendBtn.cloneNode(true)); 
+                    messageInput.replaceWith(messageInput.cloneNode(true));
+                    
+                    // Yeni event listener'ları ekle
+                    document.getElementById('sendGroupMessageBtn').onclick = () => sendGroupMessage(groupId);
+                    document.getElementById('groupMessageInput').addEventListener('keypress', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            sendGroupMessage(groupId);
+                        }
+                    });
+                }
+
+                // YENİ: Grup mesajı gönderme fonksiyonu
+                async function sendGroupMessage(groupId) {
+                    const messageInput = document.getElementById('groupMessageInput');
+                    const message = messageInput.value.trim();
+
+                    if (message && groupId && signalRConnection && signalRConnection.state === "Connected") {
+                        try {
+                            await signalRConnection.invoke("SendGroupMessage", groupId, message);
+                            messageInput.value = ''; // Mesaj gönderildikten sonra input'u temizle
+                        } catch (err) {
+                            console.error("Error sending group message:", err);
+                            alert("Grup mesajı gönderilemedi.");
+                        }
+                    }
+                }
+
+                // YENİ: SignalR bağlantısını başlatan veya mevcut bağlantıyı döndüren fonksiyon
+                async function ensureSignalRConnection() {
+                    if (!signalRConnection || signalRConnection.state !== "Connected") {
+                        signalRConnection = new signalR.HubConnectionBuilder()
+                            .withUrl("/chatHub")
+                            .withAutomaticReconnect()
+                            .build();
+
+                        // Grup mesajlarını alma handler'ı
+                        signalRConnection.on("ReceiveGroupMessage", (receivedGroupId, senderUsername, message, createdAt) => {
+                            // Sadece aktif olan grubun mesajlarını göster
+                            if (receivedGroupId === currentActiveGroupId) {
+                                appendGroupMessage(senderUsername, message, createdAt);
+                            }
+                            // TODO: İsteğe bağlı olarak aktif olmayan gruplar için bildirim gösterilebilir
+                        });
+                        
+                        // Kişisel mesajları alma handler'ı (mevcut)
+                        signalRConnection.on("ReceiveMessage", (senderUsername, message) => {
+                           // Kişisel sohbet arayüzü aktifse mesajı göster
+                           const personalChatPanel = document.getElementById('chatContent');
+                           if (!personalChatPanel.classList.contains('hidden')) {
+                                const targetUsername = document.getElementById('chatTargetUsername')?.value;
+                                // Doğru kişisel sohbet açıksa mesajı ekle
+                                if(targetUsername && (senderUsername === targetUsername || senderUsername === '@User.Identity.Name')) {
+                                     appendPersonalMessage(senderUsername, message);
+                                } 
+                           }
+                        });
+
+                        // Diğer SignalR event handler'ları (ReceiveFile vs.) buraya eklenebilir
+
+                        try {
+                            await signalRConnection.start();
+                            console.log("SignalR Connected.");
+                            // Genel kanala katıl (varsa)
+                             await signalRConnection.invoke("JoinChat", '@User.Identity.Name');
+                        } catch (err) {
+                            console.error('SignalR Connection Error: ', err);
+                            alert("Sohbet sunucusuna bağlanılamadı.");
+                            signalRConnection = null;
+                        }
+                    }
+                }
+
+                // YENİ: Grup mesajını arayüze ekleyen - SORUN GİDERME VERSİYONU
+                function appendGroupMessage(senderUsername, message, createdAt) {
+                    console.log(`appendGroupMessage called: sender=${senderUsername}, currentUser='@User.Identity.Name'`);
+                    
+                    const messagesDiv = document.getElementById('activeGroupMessages');
+                    if (!messagesDiv) {
+                        console.error('#activeGroupMessages element not found!');
+                        return; 
+                    }
+
+                    const currentUsername = '@User.Identity.Name';
+                    const isCurrentUser = senderUsername === currentUsername;
+                    const userColor = getUserColor(senderUsername);
+                    
+                    // Ana mesaj konteyneri (hizalama için)
+                    const messageContainer = document.createElement('div');
+                    messageContainer.className = `w-full flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} mb-3`;
+
+                    // Baloncuk ve içerik konteyneri
+                    const bubbleContainer = document.createElement('div');
+                    bubbleContainer.className = `max-w-[75%]`;
+
+                    // Mesaj Baloncuğu
+                    const messageBubble = document.createElement('div');
+                    let bubbleBaseClasses = 'rounded-lg py-2 px-3 shadow-sm inline-block';
+                    
+                    messageBubble.className = `${bubbleBaseClasses} ${userColor.bg} ${userColor.text}`;
+
+                    // Gönderen Adı (Mesaj balonunun içinde)
+                    const senderNameSpan = document.createElement('div');
+                    senderNameSpan.className = `text-xs font-semibold mb-1 ${userColor.textLight}`; 
+                    senderNameSpan.textContent = senderUsername;
+                    messageBubble.appendChild(senderNameSpan);
+
+                    // Mesaj İçeriği
+                    const messageContent = document.createElement('p');
+                    messageContent.className = "break-words text-sm";
+                    messageContent.textContent = message;
+                    messageBubble.appendChild(messageContent);
+
+                    // Zaman Damgası
+                    const timestampSpan = document.createElement('span');
+                    timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
+                    timestampSpan.textContent = new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    messageBubble.appendChild(timestampSpan);
+
+                    // Baloncuğu, baloncuk konteynerine ekle
+                    bubbleContainer.appendChild(messageBubble);
+                    
+                    // Baloncuk konteynerini ana konteynere ekle
+                    messageContainer.appendChild(bubbleContainer);
+
+                    // Eğer 'Henüz mesaj yok' mesajı varsa kaldır
+                    const noMessages = messagesDiv.querySelector('.text-gray-500.p-4');
+                    if (noMessages && noMessages.textContent === 'Henüz mesaj yok.') {
+                        messagesDiv.innerHTML = '';
+                    }
+
+                    // Tamamlanmış mesaj bloğunu mesajlar div'ine ekle
+                    messagesDiv.appendChild(messageContainer);
+                    
+                    // Her zaman en alta kaydır
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+
+                // Kişisel mesaj ekleme fonksiyonu (Gerekirse güncelleyin veya ayrı tutun)
+                 function appendPersonalMessage(senderUsername, message) {
+                    const messagesDiv = document.getElementById('messages'); // Kişisel sohbet mesaj div ID'si
+                    if (!messagesDiv) return; // Panel açık değilse ekleme
+
+                    const isCurrentUser = senderUsername === '@User.Identity.Name';
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+                    messageDiv.innerHTML = `
+                        <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
+                            <p class="break-words">${message}</p>
+                            <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
+                                ${new Date().toLocaleTimeString()}
+                            </span>
+                        </div>
+                    `;
+                    messagesDiv.appendChild(messageDiv);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 }
 
                 // Kullanıcının katıldığı okul gruplarını sol panelde göstermek için fonksiyon

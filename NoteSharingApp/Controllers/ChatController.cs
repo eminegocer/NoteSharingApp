@@ -318,7 +318,6 @@ namespace NoteSharingApp.Controllers
                     return Json(new
                     {
                         success = true,
-                        message = "Gruba başarıyla katıldınız.",
                         groupId = group.Id.ToString(),
                         groupName = group.GroupName
                     });
@@ -364,6 +363,43 @@ namespace NoteSharingApp.Controllers
                 });
 
                 return Json(result);
+            }
+            catch (Exception ex)
+            {
+                return Json(new List<object>());
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetGroupMessages(string groupId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(groupId) || !ObjectId.TryParse(groupId, out var groupObjectId))
+                {
+                    return Json(new List<object>());
+                }
+
+                var group = await _database.SchoolGroups
+                    .Find(g => g.Id == groupObjectId)
+                    .FirstOrDefaultAsync();
+
+                if (group == null)
+                {
+                    return Json(new List<object>());
+                }
+
+                var messages = group.Messages
+                    .OrderBy(m => m.CreatedAt)
+                    .Select(m => new
+                    {
+                        senderUsername = m.SenderUsername,
+                        content = m.Content,
+                        createdAt = m.CreatedAt,
+                        fileUrl = m.FileUrl,
+                    });
+
+                return Json(messages);
             }
             catch (Exception ex)
             {
