@@ -462,11 +462,27 @@
 
                 // Sohbet yükleme
                 window.loadChat = function(username) {
+                    // Mevcut açık sohbeti kapat
+                    const mainContent = document.getElementById('mainContent');
+                    const chatContent = document.getElementById('chatContent');
+                    const groupChatPanel = document.getElementById('groupChatPanel');
+                    const activeGroupChatPanel = document.getElementById('activeGroupChatPanel');
+                    
+                    // Tüm sohbet panellerini gizle
+                    groupChatPanel.classList.add('hidden');
+                    activeGroupChatPanel.classList.add('hidden');
+                    
+                    // SignalR bağlantısını kapat (varsa)
+                    if (signalRConnection && signalRConnection.state === "Connected") {
+                        signalRConnection.stop().catch(function (err) {
+                            console.error('SignalR bağlantısı kapatılırken hata:', err);
+                        });
+                    }
+
+                    // Yeni sohbeti aç
                     fetch(`/Chat/ChatView?targetUsername=${encodeURIComponent(username)}`)
                         .then(response => response.text())
                         .then(html => {
-                            const mainContent = document.getElementById('mainContent');
-                            const chatContent = document.getElementById('chatContent');
                             const chatHeader = document.createElement('div');
                             chatHeader.className = 'bg-purple-100 text-purple-800 p-3 rounded-t-lg flex justify-between items-center mb-4';
                             chatHeader.innerHTML = `
