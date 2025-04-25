@@ -28,5 +28,8 @@ namespace NoteSharingApp.Models
         
         [BsonElement("Participants")]
         public List<ObjectId> ParticipantIds { get; set; } = new List<ObjectId>();
+
+        [BsonElement("Messages")]
+        public List<Message> Messages { get; set; } = new List<Message>();
     }
 } 

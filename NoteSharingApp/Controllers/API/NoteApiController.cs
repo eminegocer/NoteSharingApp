@@ -91,7 +91,7 @@ namespace NoteSharingApp.Controllers
             note.OwnerId = parsedOwnerId;
             note.OwnerUsername = user.UserName; // OwnerUsername burada atanıyor
 
-            // Veritabanına kaydet (aynı kalıyor)
+            // Veritabanına kaydet 
             try
             {
                 await _database.Notes.InsertOneAsync(note);
@@ -102,5 +102,34 @@ namespace NoteSharingApp.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Veritabanına kaydedilirken bir hata oluştu.", error = ex.Message });
             }
         }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchNotes([FromQuery] string term)
+        {
+            if (string.IsNullOrWhiteSpace(term))
+                return BadRequest("Arama terimi boş olamaz.");
+
+            // Kullanıcıları filtrele (SchoolName veya UserName’e göre)
+            var userFilter = Builders<User>.Filter.Or(
+                Builders<User>.Filter.Regex("SchoolName", new BsonRegularExpression(term, "i")),
+                Builders<User>.Filter.Regex("UserName", new BsonRegularExpression(term, "i"))
+            );
+
+            var matchedUsers = await _database.Users.Find(userFilter).ToListAsync();
+            var matchedUserIds = matchedUsers.Select(u => u.UserId).ToList();
+
+            // Notları filtrele: Başlık, içerik, kategori veya eşleşen kullanıcıların OwnerId'sine göre
+            var noteFilter = Builders<Note>.Filter.Or(
+                Builders<Note>.Filter.Regex("Title", new BsonRegularExpression(term, "i")),
+                Builders<Note>.Filter.Regex("Content", new BsonRegularExpression(term, "i")),
+                Builders<Note>.Filter.Regex("Category", new BsonRegularExpression(term, "i")),
+                Builders<Note>.Filter.In("OwnerId", matchedUserIds)
+            );
+
+            var notes = await _database.Notes.Find(noteFilter).ToListAsync();
+
+            return Ok(notes);
+        }
+
     }
 }
