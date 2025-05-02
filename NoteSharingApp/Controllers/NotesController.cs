@@ -130,7 +130,20 @@ namespace NoteSharingApp.Controllers
             return RedirectToAction("HomePage");
         }
 
-      
-        
+        public async Task<IActionResult> NoteDetail(string id, string returnUrl)
+        {
+            if (string.IsNullOrEmpty(id))
+                return NotFound();
+
+            if (!ObjectId.TryParse(id, out var objectId))
+                return NotFound();
+
+            var note = await _database.Notes.Find(x => x.NoteId == objectId).FirstOrDefaultAsync();
+            if (note == null)
+                return NotFound();
+
+            ViewBag.ReturnUrl = returnUrl ?? "/Profile";
+            return View(note);
+        }
     }
 }
