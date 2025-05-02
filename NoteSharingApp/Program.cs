@@ -1,12 +1,11 @@
-
- using Microsoft.Extensions.DependencyInjection;
- using Microsoft.Extensions.Configuration;
- using Microsoft.EntityFrameworkCore;
- using Microsoft.AspNetCore.Http.Features;
- using Microsoft.AspNetCore.Authentication.Cookies;
- using NoteSharingApp.Repository;
- using NoteSharingApp.Hubs;
- using MongoDB.Driver;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using NoteSharingApp.Repository;
+using NoteSharingApp.Hubs;
+using MongoDB.Driver;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
@@ -56,6 +55,8 @@ builder.Services.Configure<FormOptions>(options =>
 var connectionString = builder.Configuration.GetConnectionString("MongoDb");
 
 // MongoDB için bağımlılığı ekle
+builder.Services.AddSingleton<IMongoClient>(s =>
+    new MongoClient(connectionString));
 builder.Services.AddSingleton<DatabaseContext>();
 try
 {

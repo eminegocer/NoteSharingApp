@@ -1,0 +1,445 @@
+@model NoteSharingApp.Controllers.ProfileViewModel
+@{
+    ViewData["Title"] = "Profil";
+}
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+<div class="container profile-main-container py-5">
+    <div class="row justify-content-center align-items-start flex-lg-nowrap flex-wrap gap-4">
+        <!-- Profil Bilgileri -->
+        <div class="col-lg-4 mb-4 d-flex flex-column align-items-center">
+            <div class="card shadow border-0 profile-card-modern w-100">
+                <div class="card-body text-center">
+                    <div class="profile-picture-container mb-3 mx-auto">
+                        @if (!string.IsNullOrEmpty(Model.User.ProfilePicture))
+                        {
+                            <img src="@Model.User.ProfilePicture" class="rounded-circle profile-picture border border-3 border-light" alt="Profil Resmi">
+                        }
+                        else
+                        {
+                            <div class="rounded-circle profile-picture-placeholder d-flex align-items-center justify-content-center bg-light">
+                                <i class="fas fa-user fa-3x text-secondary"></i>
+                            </div>
+                        }
+                    </div>
+                    <h3 class="card-title mb-1 text-main">@Model.User.UserName</h3>
+                    <p class="text-muted mb-2">@Model.User.Email</p>
+                    <div class="d-flex justify-content-center gap-2 mb-2">
+                        @if (!string.IsNullOrEmpty(Model.User.Department))
+                        {
+                            <span class="badge badge-main">@Model.User.Department</span>
+                        }
+                        @if (Model.User.Year.HasValue)
+                        {
+                            <span class="badge badge-year">@Model.User.Year. Sınıf</span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.User.Bio))
+                    {
+                        <div class="profile-bio-box">@Model.User.Bio</div>
+                    }
+                    <div class="profile-stats mt-4">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h5 class="mb-0 text-main">@Model.User.SharedNotesCount</h5>
+                                <p class="text-muted">Paylaşılan Not</p>
+                            </div>
+                            <div class="col-6">
+                                <h5 class="mb-0 text-accent">@Model.User.ReceivedNotesCount</h5>
+                                <p class="text-muted">Alınan Not</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profil Düzenleme Formu -->
+            <div class="card shadow-sm mt-4 border-0 w-100">
+                <div class="card-body bg-white rounded-4">
+                    <h5 class="card-title text-main mb-3">Profil Bilgilerini Düzenle</h5>
+                    <form asp-action="UpdateProfile" method="post" class="profile-edit-form">
+                        <div class="mb-3 row align-items-center">
+                            <label for="bio" class="form-label col-sm-3 mb-0 text-label">Biyografi</label>
+                            <div class="col-sm-9">
+                                <textarea class="form-control profile-input" id="bio" name="Bio" rows="3">@Model.User.Bio</textarea>
+                            </div>
+                        </div>
+                        <div class="mb-3 row align-items-center">
+                            <label for="department" class="form-label col-sm-3 mb-0 text-label">Bölüm</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control profile-input" id="department" name="Department" value="@Model.User.Department">
+                            </div>
+                        </div>
+                        <div class="mb-3 row align-items-center">
+                            <label for="year" class="form-label col-sm-3 mb-0 text-label">Sınıf</label>
+                            <div class="col-sm-9">
+                                <input type="number" class="form-control profile-input" id="year" name="Year" value="@Model.User.Year">
+                            </div>
+                        </div>
+                        <div class="mb-3 row align-items-center">
+                            <label for="school" class="form-label col-sm-3 mb-0 text-label">Okul</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control profile-input" id="school" name="SchoolName" value="@Model.User.SchoolName">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-main w-100">Güncelle</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notlar -->
+        <div class="col-lg-8 d-flex flex-column align-items-center">
+            <!-- Paylaşılan Notlar -->
+            <div class="card shadow mb-4 border-0 w-100">
+                <div class="card-header bg-main text-white rounded-top-4">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Paylaşılan Notlar</h5>
+                </div>
+                <div class="card-body bg-white rounded-bottom-4">
+                    @if (Model.SharedNotes.Any())
+                    {
+                        <div class="notes-grid">
+                            @foreach (var note in Model.SharedNotes)
+                            {
+                                <a href="@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = Url.Action("Index", "Profile") })" class="note-card-link">
+                                    <div class="note-card-wrapper cursor-pointer">
+                                        <div class="note-mini-card card border-0 shadow-sm w-100 mb-3">
+                                            <div class="card-body d-flex flex-column justify-content-between">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <span class="badge badge-main me-2">@note.Category</span>
+                                                    <small class="text-muted ms-auto">@note.CreatedAt.ToString("dd/MM/yyyy")</small>
+                                                </div>
+                                                <h6 class="note-title mb-2">@note.Title</h6>
+                                                <p class="card-text small text-muted mb-2">
+                                                    @(string.IsNullOrEmpty(note.Content) ? "" : (note.Content.Length > 60 ? note.Content.Substring(0, 60) + "..." : note.Content))
+                                                </p>
+                                                <div class="d-flex align-items-center mt-auto">
+                                                    <i class="fas fa-file-alt text-accent me-1"></i>
+                                                    <span class="small text-accent">Not Detayı</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-file-alt fa-4x text-muted mb-4"></i>
+                            <h5 class="text-muted mb-2">Henüz Paylaşılan Not Bulunmuyor</h5>
+                            <p class="text-muted small">Not paylaşmak için "Not Ekle" sayfasını kullanabilirsiniz.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Alınan Notlar -->
+            <div class="card shadow border-0 w-100">
+                <div class="card-header bg-accent text-white rounded-top-4">
+                    <h5 class="mb-0"><i class="fas fa-download me-2"></i>Alınan Notlar</h5>
+                </div>
+                <div class="card-body bg-white rounded-bottom-4">
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-download fa-4x text-muted mb-4"></i>
+                        <h5 class="text-muted mb-2">Henüz Alınan Not Bulunmuyor</h5>
+                        <p class="text-muted small">Not alma özelliği yakında eklenecektir.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stil -->
+<style>
+    body {
+        font-family: 'Inter', Arial, sans-serif;
+        background: #f4f6f9;
+        margin: 0;
+        padding: 0;
+    }
+
+    .profile-main-container {
+        max-width: 1100px;
+        margin: auto;
+        padding: 1rem;
+    }
+
+    .profile-card-modern {
+        border-radius: 1.5rem;
+        background: #ffffff;
+        padding: 2rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .profile-picture-container, .profile-picture, .profile-picture-placeholder {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        margin-bottom: 1rem;
+    }
+
+    .profile-picture {
+        object-fit: cover;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border: 3px solid #fff;
+    }
+
+    .profile-picture-placeholder {
+        background: #f0f4ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid #fff;
+    }
+
+    .text-main {
+        color: #8BA4FD;
+        font-weight: 700;
+    }
+
+    .text-accent {
+        color: #9ED3C2;
+        font-weight: 700;
+    }
+
+    .badge-main,
+    .badge-accent,
+    .badge-year {
+        font-weight: 600;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+        padding: 0.4em 1em;
+        color: #fff;
+    }
+
+    .badge-main {
+        background: #8BA4FD;
+    }
+
+    .badge-accent {
+        background: #9ED3C2;
+    }
+
+    .badge-year {
+        background: #FFC6D1;
+    }
+
+    .btn-main {
+        background: #8BA4FD;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 0.75rem;
+        transition: all 0.3s ease;
+        border: none;
+        padding: 0.5rem 1rem;
+    }
+
+        .btn-main:hover {
+            background: #7A94E8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 164, 253, 0.3);
+        }
+
+    .bg-main {
+        background: #8BA4FD !important;
+    }
+
+    .bg-accent {
+        background: #9ED3C2 !important;
+    }
+
+    .note-mini-card {
+        aspect-ratio: 1 / 1;
+        width: 100%;
+        border-radius: 1.25rem;
+        background: #ffffff;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 1.25rem;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .note-mini-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #8BA4FD, #9ED3C2);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .note-mini-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(139, 164, 253, 0.15);
+            background: #f8faff;
+        }
+
+            .note-mini-card:hover::before {
+                opacity: 1;
+            }
+
+    .note-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #2D3748;
+        margin-bottom: 0.75rem;
+        text-align: center;
+        width: 100%;
+        line-height: 1.4;
+    }
+
+    .card {
+        border-radius: 1.25rem;
+        border: none;
+        background: #fff;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-header {
+        border-radius: 1.25rem 1.25rem 0 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        background: #f8faff;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .card-body {
+        font-size: 1rem;
+        padding: 1.5rem;
+    }
+
+    .form-label {
+        margin-bottom: 0.5rem;
+        font-size: 1.05rem;
+        text-align: center;
+        width: 100%;
+        display: block;
+    }
+    .form-control {
+        border: 2px solid #b5c7fa;
+        border-radius: 1rem;
+        background: #f7f9ff;
+        color: #222;
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.07);
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .form-control:focus {
+        border-color: #8BA4FD;
+        box-shadow: 0 0 0 0.2rem rgba(139, 164, 253, 0.13);
+        background: #f0f4ff;
+    }
+    .profile-bio-box {
+        background: linear-gradient(90deg, #e3eaff 60%, #f7f9ff 100%);
+        border: 2px solid #b5c7fa;
+        border-radius: 1rem;
+        padding: 1rem 1.2rem;
+        color: #222;
+        font-size: 1rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.07);
+        min-height: 70px;
+        width:400px;
+        align-self:center;
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .notes-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .note-card-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+    }
+
+    @@media (max-width: 991px) {
+        .profile-main-container
+
+    {
+        max-width: 98vw;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    .profile-picture-container, .profile-picture, .profile-picture-placeholder {
+        width: 80px;
+        height: 80px;
+    }
+
+    .notes-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    }
+
+    @@media (max-width: 600px) {
+        .notes-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    .profile-edit-form {
+        max-width: 420px;
+        margin: 0 auto;
+    }
+    .profile-input {
+        max-width: 260px;
+        min-width: 180px;
+        width: 100%;
+        display: inline-block;
+    }
+    @@media (max-width: 600px) {
+        .profile-edit-form {
+            max-width: 100%;
+        }
+        .profile-input {
+            max-width: 100%;
+        }
+    }
+
+    .text-label {
+        font-size: 0.98rem;
+        color: #7a94e8;
+        font-weight: 500;
+        text-align: left;
+        min-width: 80px;
+        max-width: 120px;
+        width: auto;
+        padding-right: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+</style>

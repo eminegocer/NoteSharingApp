@@ -27,6 +27,30 @@ namespace NoteSharingApp.Models
         [BsonElement("SchoolName")]
         [StringLength(100, ErrorMessage = "Okul adı en fazla 100 karakter olabilir.")]
         public string? SchoolName { get; set; }
+
+        [BsonElement("ProfilePicture")]
+        public string? ProfilePicture { get; set; }
+
+        [BsonElement("Bio")]
+        [StringLength(500, ErrorMessage = "Biyografi en fazla 500 karakter olabilir.")]
+        public string? Bio { get; set; }
+
+        [BsonElement("Department")]
+        [StringLength(100, ErrorMessage = "Bölüm adı en fazla 100 karakter olabilir.")]
+        public string? Department { get; set; }
+
+        [BsonElement("Year")]
+        public int? Year { get; set; }
+
+        [BsonElement("SharedNotesCount")]
+        public int SharedNotesCount { get; set; } = 0;
+
+        [BsonElement("ReceivedNotesCount")]
+        public int ReceivedNotesCount { get; set; } = 0;
+
+        [BsonElement("LastLogin")]
+        [BsonRepresentation(BsonType.DateTime)]
+        public DateTime? LastLogin { get; set; }
     }
 
 }
