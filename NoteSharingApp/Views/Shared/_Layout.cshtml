@@ -60,37 +60,41 @@
         .btn-primary {
             border: none;
         }
+
+        .nav-link-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-    <!--<!-- Navbar -->
-    <nav class="bg-white bg-opacity-20 shadow-sm h-16 navbar">
-        <!-- Yüksekliği artırdık (h-16) ve saydamlık ekledik -->
-        <div class="max-w-7xl mx-auto px-4 h-full">
-            <div class="flex justify-between items-center h-full">
-                <!-- Logo/Site Adı -->
-                <div class="flex items-center">
-                    <a href="/" class="text-blue-700 font-semibold text-lg">
-                        <img src="~/img/note.png" alt="Note Sharing App" class="w-8 h-8 inline-block ml-1"> <!-- Resmi sola kaydırdık -->
-                    </a>
-                </div>
+    @if (User.Identity.IsAuthenticated)
+    {
+        <!-- Navbar -->
+        <nav class="bg-white bg-opacity-20 shadow-sm h-16 navbar">
+            <div class="max-w-7xl mx-auto px-4 h-full">
+                <div class="flex justify-between items-center h-full">
+                    <!-- Logo/Site Adı -->
+                    <div class="flex items-center">
+                        <a href="/Notes/HomePage" class="text-blue-700 font-semibold text-lg">
+                            <img src="~/img/note.png" alt="Note Sharing App" class="w-8 h-8 inline-block ml-1">
+                        </a>
+                    </div>
 
-                <!-- Navigasyon Linkleri -->
-                <div class="flex items-center space-x-4">
-                    <a href="/Profile" class="text-gray-600 hover:text-blue-700 text-sm">Profil</a>
-                    <a asp-controller="Home" asp-action="Index" class=" btn bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors btn-primary">
-                        Çıkış
-                    </a>
-
+                    <!-- Navigasyon Linkleri -->
+                    <div class="flex items-center space-x-4">
+                        <a href="/Profile" class="text-gray-600 hover:text-blue-700 text-sm">Profil</a>
+                        <a asp-controller="Home" asp-action="Index" class="btn bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors btn-primary">
+                            Çıkış
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
-    </nav>
-
-    </nav>
+        </nav>
+    }
 
     <!-- Ana İçerik -->
-    <main class="mt-2"> <!-- margin-top değerini azalttık -->
+    <main class="mt-2">
         @RenderBody()
     </main>
 
@@ -104,13 +108,12 @@
         </div>
     </footer>
 
-
-
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- Alpine.js (opsiyonel - interaktif özellikler için) -->
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+        function redirectToLogin(event) {
+            event.preventDefault();
+            window.location.href = '/Account/Login';
+        }
+    </script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

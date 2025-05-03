@@ -74,13 +74,18 @@ namespace NoteSharingApp.Controllers
         [HttpGet]
         public async Task<IActionResult> SearchUsers(string searchTerm)
         {
-            if (string.IsNullOrEmpty(searchTerm))
-                return Json(new List<string>());
+            if (!User.Identity.IsAuthenticated)
+            {
+                return Json(new List<object>());
+            }
 
+            var currentUsername = User.Identity.Name;
+
+            // Kullanıcıları ara (mevcut kullanıcı hariç)
             var users = await _database.Users
-                .Find(u => u.UserName.ToLower().Contains(searchTerm.ToLower()))
-                .Project(u => u.UserName)
-                .Limit(5)
+                .Find(u => u.UserName != currentUsername && u.UserName.Contains(searchTerm))
+                .Project(u => new { username = u.UserName })
+                .Limit(10)
                 .ToListAsync();
 
             return Json(users);
@@ -400,6 +405,41 @@ namespace NoteSharingApp.Controllers
                     });
 
                 return Json(messages);
+            }
+            catch (Exception ex)
+            {
+                return Json(new List<object>());
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserGroups()
+        {
+            try
+            {
+                if (!User.Identity.IsAuthenticated)
+                {
+                    return Json(new List<object>());
+                }
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Json(new List<object>());
+                }
+
+                // Kullanıcının katıldığı grupları bul
+                var userGroups = await _database.Groups
+                    .Find(g => g.UserIds.Contains(userId))
+                    .ToListAsync();
+
+                var result = userGroups.Select(g => new
+                {
+                    id = g.Id.ToString(),
+                    groupName = g.GroupName
+                });
+
+                return Json(result);
             }
             catch (Exception ex)
             {

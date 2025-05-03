@@ -202,55 +202,87 @@ namespace NoteSharingApp.Hubs
             System.Diagnostics.Debug.WriteLine($"User {Context.User.Identity.Name} left group {groupId}");
         }
 
-        // YENİ: Grup mesajı gönderme metodu
+        // Grup mesajı gönderme metodu
         public async Task SendGroupMessage(string groupId, string message)
         {
             try
             {
                 var senderUsername = Context.User.Identity.Name;
-                if (!ObjectId.TryParse(groupId, out var groupObjectId))
+                if (string.IsNullOrEmpty(senderUsername))
                 {
-                    throw new Exception("Geçersiz Grup Kimliği");
+                    throw new Exception("Kullanıcı kimliği bulunamadı");
                 }
 
-                var sender = await _database.Users.Find(u => u.UserName == senderUsername).FirstOrDefaultAsync();
-                if (sender == null)
+                // Normal grup koleksiyonunda ara
+                var group = await _database.Groups
+                    .Find(g => g.Id == groupId)
+                    .FirstOrDefaultAsync();
+
+                if (group != null)
                 {
-                    throw new Exception($"Gönderen kullanıcı ({senderUsername}) bulunamadı");
+                    // Grup mesajı oluştur
+                    var newMessage = new GroupMessage
+                    {
+                        SenderId = Context.User.FindFirst("sub")?.Value,
+                        SenderUsername = senderUsername,
+                        Content = message,
+                        SentAt = DateTime.UtcNow
+                    };
+
+                    // Mesajı gruba ekle
+                    var update = Builders<Group>.Update.Push(g => g.Messages, newMessage);
+                    var result = await _database.Groups.UpdateOneAsync(
+                        g => g.Id == groupId,
+                        update
+                    );
+
+                    if (result.ModifiedCount == 0)
+                    {
+                        throw new Exception("Mesaj kaydedilemedi");
+                    }
+
+                    // Mesajı gruptaki herkese gönder
+                    await Clients.Group(groupId).SendAsync("ReceiveGroupMessage", groupId, senderUsername, message);
+                    return;
                 }
 
-                // Grubu bul ve mesajı ekle
-                var groupFilter = Builders<SchoolGroup>.Filter.Eq(g => g.Id, groupObjectId);
-                var group = await _database.SchoolGroups.Find(groupFilter).FirstOrDefaultAsync();
-                if (group == null)
+                // Eğer normal grupta bulunamazsa, okul grubunda ara
+                var schoolGroup = await _database.SchoolGroups
+                    .Find(g => g.Id == ObjectId.Parse(groupId))
+                    .FirstOrDefaultAsync();
+
+                if (schoolGroup != null)
                 {
-                    throw new Exception("Grup bulunamadı");
+                    // Okul grubu için mesaj oluştur
+                    var newMessage = new Message
+                    {
+                        SenderUsername = senderUsername,
+                        Content = message,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    // Mesajı SchoolGroup'a ekle
+                    var update = Builders<SchoolGroup>.Update.Push(g => g.Messages, newMessage);
+                    var result = await _database.SchoolGroups.UpdateOneAsync(
+                        g => g.Id == schoolGroup.Id,
+                        update
+                    );
+
+                    if (result.ModifiedCount == 0)
+                    {
+                        throw new Exception("Mesaj kaydedilemedi");
+                    }
+
+                    // Mesajı gruptaki herkese gönder
+                    await Clients.Group(groupId).SendAsync("ReceiveGroupMessage", groupId, senderUsername, message);
+                    return;
                 }
 
-                var newMessage = new Message
-                {
-                    SenderUsername = senderUsername,
-                    Content = message,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                // Mesajı grubun mesaj listesine ekle
-                var update = Builders<SchoolGroup>.Update.Push(g => g.Messages, newMessage);
-                var result = await _database.SchoolGroups.UpdateOneAsync(groupFilter, update);
-
-                if (result.ModifiedCount == 0)
-                {
-                    throw new Exception("Grup mesajı veritabanına kaydedilemedi");
-                }
-
-                // Mesajı gruptaki herkese gönder (gönderen dahil)
-                await Clients.Group(groupId).SendAsync("ReceiveGroupMessage", groupId, senderUsername, message, newMessage.CreatedAt);
+                throw new Exception("Grup bulunamadı");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SendGroupMessage Error: {ex.Message}");
-                // İstemciye hata gönderme (opsiyonel)
-                // await Clients.Caller.SendAsync("GroupMessageError", "Mesaj gönderilemedi: " + ex.Message);
                 throw;
             }
         }
