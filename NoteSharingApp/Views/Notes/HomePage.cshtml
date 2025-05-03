@@ -948,43 +948,6 @@
                     });
                 }
 
-                // Grup mesajı gönderme fonksiyonu
-                async function sendGroupMessage(groupId) {
-                    const messageInput = document.getElementById('groupMessageInput');
-                    const message = messageInput.value.trim();
-
-                    if (!message) {
-                        return; // Boş mesaj göndermeyi engelle
-                    }
-
-                    if (!groupId) {
-                        console.error('Grup ID bulunamadı');
-                        return;
-                    }
-
-                    try {
-                        // SignalR bağlantısını kontrol et
-                        if (!signalRConnection || signalRConnection.state !== "Connected") {
-                            console.error('SignalR bağlantısı yok');
-                            alert('Bağlantı hatası. Lütfen sayfayı yenileyip tekrar deneyin.');
-                            return;
-                        }
-
-                        // Mesajı gönder
-                        await signalRConnection.invoke("SendGroupMessage", groupId, message);
-                        messageInput.value = ''; // Mesaj gönderildikten sonra input'u temizle
-                        
-                        // Scroll to bottom
-                        const messagesDiv = document.getElementById('activeGroupMessages');
-                        if (messagesDiv) {
-                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                        }
-                    } catch (err) {
-                        console.error("Grup mesajı gönderilirken hata:", err);
-                        alert("Mesaj gönderilemedi. Lütfen tekrar deneyin.");
-                    }
-                }
-
                 // Grup sohbetini yüklemek için fonksiyon
                 function loadGroupChat(groupId, groupName) {
                     const mainContent = document.getElementById('mainContent');
@@ -1004,73 +967,14 @@
                     document.getElementById('activeGroupName').textContent = groupName;
                     currentActiveGroupId = groupId;
 
-                    // SignalR bağlantısını kur veya yeniden kullan
-                    if (!signalRConnection || signalRConnection.state !== "Connected") {
-                        signalRConnection = new signalR.HubConnectionBuilder()
-                            .withUrl("/chatHub")
-                            .withAutomaticReconnect()
-                            .build();
-
-                        // Grup mesajı alma event'ini tanımla
-                        signalRConnection.on("ReceiveGroupMessage", (receivedGroupId, senderUsername, message) => {
-                            if (receivedGroupId === currentActiveGroupId) {
-                                const messagesDiv = document.getElementById('activeGroupMessages');
-                                const isCurrentUser = senderUsername === '@User.Identity.Name';
-                                const userColor = getUserColor(senderUsername);
-                                
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = `w-full flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} mb-3`;
-
-                                const bubbleContainer = document.createElement('div');
-                                bubbleContainer.className = `max-w-[75%]`;
-
-                                const messageBubble = document.createElement('div');
-                                let bubbleBaseClasses = 'rounded-lg py-2 px-3 shadow-sm inline-block';
-                                messageBubble.className = `${bubbleBaseClasses} ${userColor.bg} ${userColor.text}`;
-
-                                const senderNameSpan = document.createElement('div');
-                                senderNameSpan.className = `text-xs font-semibold mb-1 ${userColor.textLight}`;
-                                senderNameSpan.textContent = senderUsername;
-                                messageBubble.appendChild(senderNameSpan);
-
-                                const messageContent = document.createElement('p');
-                                messageContent.className = "break-words text-sm";
-                                messageContent.textContent = message;
-                                messageBubble.appendChild(messageContent);
-
-                                const timestampSpan = document.createElement('span');
-                                timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
-                                timestampSpan.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                messageBubble.appendChild(timestampSpan);
-
-                                bubbleContainer.appendChild(messageBubble);
-                                messageDiv.appendChild(bubbleContainer);
-                                messagesDiv.appendChild(messageDiv);
-
-                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                            }
-                        });
-
-                        // SignalR bağlantısını başlat
-                        signalRConnection.start().then(() => {
-                            console.log("SignalR Connected");
-                            // Gruba katıl
-                            signalRConnection.invoke("JoinGroup", groupId).catch(function (err) {
-                                console.error('Gruba katılırken hata:', err);
-                            });
-                        }).catch(err => {
-                            console.error("SignalR Connection Error:", err);
-                        });
-                    } else {
-                        // Bağlantı zaten varsa, sadece gruba katıl
-                        signalRConnection.invoke("JoinGroup", groupId).catch(function (err) {
-                            console.error('Gruba katılırken hata:', err);
-                        });
-                    }
-                    
-                    // Mesajları yükle
+                    // Önce eski mesajları yükle
                     fetch(`/Chat/GetGroupMessages?groupId=${encodeURIComponent(groupId)}`)
-                        .then(response => response.json())
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Mesajlar yüklenemedi');
+                            }
+                            return response.json();
+                        })
                         .then(messages => {
                             const messagesDiv = document.getElementById('activeGroupMessages');
                             messagesDiv.innerHTML = '';
@@ -1101,7 +1005,8 @@
 
                                     const timestampSpan = document.createElement('span');
                                     timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
-                                    timestampSpan.textContent = new Date(message.sentAt || message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                    const messageDate = new Date(message.sentAt || message.createdAt);
+                                    timestampSpan.textContent = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                     messageBubble.appendChild(timestampSpan);
 
                                     bubbleContainer.appendChild(messageBubble);
@@ -1116,11 +1021,75 @@
                                 noMessages.textContent = 'Henüz mesaj yok.';
                                 messagesDiv.appendChild(noMessages);
                             }
+
+                            // SignalR bağlantısını kur veya yeniden kullan
+                            if (!signalRConnection || signalRConnection.state !== "Connected") {
+                                signalRConnection = new signalR.HubConnectionBuilder()
+                                    .withUrl("/chatHub")
+                                    .withAutomaticReconnect()
+                                    .build();
+
+                                // Grup mesajı alma event'ini tanımla
+                                signalRConnection.on("ReceiveGroupMessage", (receivedGroupId, senderUsername, message) => {
+                                    if (receivedGroupId === currentActiveGroupId) {
+                                        const messagesDiv = document.getElementById('activeGroupMessages');
+                                        const isCurrentUser = senderUsername === '@User.Identity.Name';
+                                        const userColor = getUserColor(senderUsername);
+                                        
+                                        const messageDiv = document.createElement('div');
+                                        messageDiv.className = `w-full flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} mb-3`;
+
+                                        const bubbleContainer = document.createElement('div');
+                                        bubbleContainer.className = `max-w-[75%]`;
+
+                                        const messageBubble = document.createElement('div');
+                                        let bubbleBaseClasses = 'rounded-lg py-2 px-3 shadow-sm inline-block';
+                                        messageBubble.className = `${bubbleBaseClasses} ${userColor.bg} ${userColor.text}`;
+
+                                        const senderNameSpan = document.createElement('div');
+                                        senderNameSpan.className = `text-xs font-semibold mb-1 ${userColor.textLight}`;
+                                        senderNameSpan.textContent = senderUsername;
+                                        messageBubble.appendChild(senderNameSpan);
+
+                                        const messageContent = document.createElement('p');
+                                        messageContent.className = "break-words text-sm";
+                                        messageContent.textContent = message;
+                                        messageBubble.appendChild(messageContent);
+
+                                        const timestampSpan = document.createElement('span');
+                                        timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
+                                        timestampSpan.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                        messageBubble.appendChild(timestampSpan);
+
+                                        bubbleContainer.appendChild(messageBubble);
+                                        messageDiv.appendChild(bubbleContainer);
+                                        messagesDiv.appendChild(messageDiv);
+
+                                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                    }
+                                });
+
+                                // SignalR bağlantısını başlat
+                                signalRConnection.start().then(() => {
+                                    console.log("SignalR Connected");
+                                    // Gruba katıl
+                                    signalRConnection.invoke("JoinGroup", groupId).catch(function (err) {
+                                        console.error('Gruba katılırken hata:', err);
+                                    });
+                                }).catch(err => {
+                                    console.error("SignalR Connection Error:", err);
+                                });
+                            } else {
+                                // Bağlantı zaten varsa, sadece gruba katıl
+                                signalRConnection.invoke("JoinGroup", groupId).catch(function (err) {
+                                    console.error('Gruba katılırken hata:', err);
+                                });
+                            }
                         })
                         .catch(error => {
                             console.error('Mesajlar yüklenirken hata oluştu:', error);
                             const messagesDiv = document.getElementById('activeGroupMessages');
-                            messagesDiv.innerHTML = '<div class="text-center text-red-500 p-4">Mesajlar yüklenemedi.</div>';
+                            messagesDiv.innerHTML = '<div class="text-center text-red-500 p-4">Mesajlar yüklenemedi. Lütfen sayfayı yenileyip tekrar deneyin.</div>';
                         });
 
                     // Mesaj gönderme butonunu ve input alanını ayarla
@@ -1141,6 +1110,43 @@
                             sendGroupMessage(groupId);
                         }
                     });
+                }
+
+                // Grup mesajı gönderme fonksiyonu
+                async function sendGroupMessage(groupId) {
+                    const messageInput = document.getElementById('groupMessageInput');
+                    const message = messageInput.value.trim();
+
+                    if (!message) {
+                        return; // Boş mesaj göndermeyi engelle
+                    }
+
+                    if (!groupId) {
+                        console.error('Grup ID bulunamadı');
+                        return;
+                    }
+                    
+                    try {
+                        // SignalR bağlantısını kontrol et
+                        if (!signalRConnection || signalRConnection.state !== "Connected") {
+                            console.error('SignalR bağlantısı yok');
+                            alert('Bağlantı hatası. Lütfen sayfayı yenileyip tekrar deneyin.');
+                            return;
+                        }
+                        
+                        // Mesajı gönder
+                        await signalRConnection.invoke("SendGroupMessage", groupId, message);
+                        messageInput.value = ''; // Mesaj gönderildikten sonra input'u temizle
+                        
+                        // Scroll to bottom
+                        const messagesDiv = document.getElementById('activeGroupMessages');
+                        if (messagesDiv) {
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        }
+                    } catch (err) {
+                        console.error("Grup mesajı gönderilirken hata:", err);
+                        alert("Mesaj gönderilemedi. Lütfen tekrar deneyin.");
+                    }
                 }
             });
         </script>

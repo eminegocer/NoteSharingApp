@@ -385,26 +385,47 @@ namespace NoteSharingApp.Controllers
                     return Json(new List<object>());
                 }
 
-                var group = await _database.SchoolGroups
+                // Önce normal gruplarda ara
+                var group = await _database.Groups
+                    .Find(g => g.Id == groupId)
+                    .FirstOrDefaultAsync();
+
+                if (group != null)
+                {
+                    var messages = group.Messages
+                        .OrderBy(m => m.SentAt)
+                        .Select(m => new
+                        {
+                            senderUsername = m.SenderUsername,
+                            content = m.Content,
+                            createdAt = m.SentAt,
+                            fileUrl = m.FileUrl,
+                        });
+
+                    return Json(messages);
+                }
+
+                // Normal grupta bulunamazsa okul gruplarında ara
+                var schoolGroup = await _database.SchoolGroups
                     .Find(g => g.Id == groupObjectId)
                     .FirstOrDefaultAsync();
 
-                if (group == null)
+                if (schoolGroup != null)
                 {
-                    return Json(new List<object>());
+                    var messages = schoolGroup.Messages
+                        .OrderBy(m => m.CreatedAt)
+                        .Select(m => new
+                        {
+                            senderUsername = m.SenderUsername,
+                            content = m.Content,
+                            createdAt = m.CreatedAt,
+                            fileUrl = m.FileUrl,
+                        });
+
+                    return Json(messages);
                 }
 
-                var messages = group.Messages
-                    .OrderBy(m => m.CreatedAt)
-                    .Select(m => new
-                    {
-                        senderUsername = m.SenderUsername,
-                        content = m.Content,
-                        createdAt = m.CreatedAt,
-                        fileUrl = m.FileUrl,
-                    });
-
-                return Json(messages);
+                return Json(new List<object>());
             }
             catch (Exception ex)
             {
