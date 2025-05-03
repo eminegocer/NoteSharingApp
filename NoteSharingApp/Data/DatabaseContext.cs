@@ -17,6 +17,7 @@ public class DatabaseContext
     public IMongoCollection<Category> Categories => _database.GetCollection<Category>("Categories");
     public IMongoCollection<Note> Notes => _database.GetCollection<Note>("Notes");
     public IMongoCollection<SchoolGroup> SchoolGroups => _database.GetCollection<SchoolGroup>("SchoolGroups");
+    public IMongoCollection<Group> Groups => _database.GetCollection<Group>("Groups");
 
     public IMongoCollection<Chat> Chats => _database.GetCollection<Chat>("Chats");
 }
