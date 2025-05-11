@@ -48,7 +48,7 @@
                 </div>
                 <a asp-controller="Notes" 
                    asp-action="AddNote" 
-                   class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                   class="btn-pastel-mor px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                     <i class="fas fa-plus text-sm"></i>
                     <span>Yeni Not</span>
                 </a>
@@ -144,7 +144,7 @@
                     <i class="fas fa-paperclip text-gray-500 hover:text-purple-600"></i>
                 </label>
                 <input type="text" id="messageInput" placeholder="Mesajınızı yazın..." class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400" />
-                <button id="sendButton" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300">
+                <button id="sendButton" class="btn-pastel-mor px-4 py-2 rounded-lg transition-all duration-300">
                     Gönder
                 </button>
             </div>
@@ -206,7 +206,7 @@
             <div class="p-4 border-t bg-white">
                 <div class="flex items-center gap-2">
                     <input type="text" id="groupMessageInput" placeholder="Mesajınızı yazın..." class="flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-purple-400 focus:border-purple-400" />
-                    <button id="sendGroupMessageBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-all duration-300">
+                    <button id="sendGroupMessageBtn" class="btn-pastel-mor px-4 py-2 rounded-lg transition-all duration-300">
                         Gönder
                     </button>
                     <!-- İsteğe bağlı: Dosya yükleme butonu -->
@@ -241,7 +241,7 @@
                              class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <button type="submit" class="w-full btn-pastel-mor font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                         <i class="fas fa-user-plus"></i>
                         <span>Kişisel Sohbet Başlat</span>
                     </button>
@@ -270,7 +270,7 @@
                 
                 <input type="hidden" id="selectedGroupId">
                 
-                <button id="searchSchoolGroupsBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <button id="searchSchoolGroupsBtn" class="w-full btn-pastel-mor font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                     <i class="fas fa-school"></i>
                     <span>Okul/Bölüm Ara</span>
                 </button>
@@ -304,7 +304,7 @@
                     <!-- Seçilen kullanıcılar buraya eklenecek -->
                 </div>
 
-                <button onclick="createGroup()" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
+                <button onclick="createGroup()" class="w-full btn-pastel-mor font-semibold p-3 rounded-lg transition-colors flex items-center justify-center gap-2">
                     <i class="fas fa-users"></i>
                     <span>Grup Oluştur</span>
                 </button>
@@ -1152,3 +1152,16 @@
         </script>
     </aside>
 </div>
+
+<style>
+    .btn-pastel-mor {
+        background-color:rgb(231, 209, 252) !important;
+        color: #6d3fa9 !important;
+        font-weight: 600;
+        transition: background-color 0.3s, color 0.3s;
+    }
+    .btn-pastel-mor:hover {
+        background-color: #b799d6 !important;
+        color: #fff !important;
+    }
+</style>
