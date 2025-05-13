@@ -57,7 +57,7 @@
             </div>
 
             <!-- Profil Düzenleme Formu -->
-            <div class="card shadow-sm mt-4 border-0 w-100">
+            <div class="card shadow-sm mt-4 border-2 w-100">
                 <div class="card-body bg-white rounded-4">
                     <h5 class="card-title text-main mb-3">Profil Bilgilerini Düzenle</h5>
                     <form asp-action="UpdateProfile" method="post" class="profile-edit-form">
@@ -129,25 +129,26 @@
                     }
                     else
                     {
-                        <div class="text-center py-5">
-                            <i class="fas fa-file-alt fa-4x text-muted mb-4"></i>
-                            <h5 class="text-muted mb-2">Henüz Paylaşılan Not Bulunmuyor</h5>
-                            <p class="text-muted small">Not paylaşmak için "Not Ekle" sayfasını kullanabilirsiniz.</p>
+                        <div class="text-center py-4">
+                            <i class="fas fa-file-alt text-muted fa-3x mb-3"></i>
+                            <p class="text-muted">Henüz paylaşılan not bulunmuyor.</p>
                         </div>
                     }
                 </div>
             </div>
 
             <!-- Alınan Notlar -->
-            <div class="card shadow border-0 w-100">
+            <div class="card shadow mb-4 border-0 w-100">
                 <div class="card-header bg-accent text-white rounded-top-4">
                     <h5 class="mb-0"><i class="fas fa-download me-2"></i>Alınan Notlar</h5>
                 </div>
                 <div class="card-body bg-white rounded-bottom-4">
-                    <div class="text-center py-5">
-                        <i class="fas fa-file-download fa-4x text-muted mb-4"></i>
-                        <h5 class="text-muted mb-2">Henüz Alınan Not Bulunmuyor</h5>
-                        <p class="text-muted small">Not alma özelliği yakında eklenecektir.</p>
+                    <div id="downloadedNotes" class="notes-grid">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-accent" role="status">
+                                <span class="visually-hidden">Yükleniyor...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -155,7 +156,100 @@
     </div>
 </div>
 
-<!-- Stil -->
+@section Scripts {
+    <script>
+        // Load downloaded notes
+        function loadDownloadedNotes() {
+            fetch('/NoteDownload/GetDownloadedNotes')
+                .then(response => response.json())
+                .then(data => {
+                    const downloadedNotesDiv = document.getElementById('downloadedNotes');
+                    if (data.success && data.notes.length > 0) {
+                        downloadedNotesDiv.innerHTML = data.notes.map(note => `
+                        <a href="/Notes/NoteDetail?id=${note.NoteId || note.noteId || ''}&returnUrl=/Profile" class="note-card-link">
+                            <div class="note-card-wrapper cursor-pointer">
+                                <div class="note-mini-card card border-0 shadow-sm w-100 mb-3">
+                                    <div class="card-body d-flex flex-column justify-content-between">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="badge badge-main me-2">${note.NoteCategory || note.noteCategory || 'Bilinmiyor'}</span>
+                                            <small class="text-muted ms-auto">${note.DownloadedAt || note.downloadedAt ? new Date(note.DownloadedAt || note.downloadedAt).toLocaleDateString() : 'Tarih Yok'}</small>
+                                        </div>
+                                        <h6 class="note-title mb-2">${note.NoteTitle || note.noteTitle || 'Bilinmiyor'}</h6>
+                                        <div class="mt-2">
+                                            <p class="card-text small text-muted mb-2">
+                                                ${note.NoteContent ? (note.NoteContent.length > 60 ? note.NoteContent.substring(0, 60) + '...' : note.NoteContent) : ''}
+                                            </p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted"><i class="fas fa-user me-1"></i>Paylaşan: ${note.NoteOwnerUsername || note.noteOwnerUsername || 'Bilinmiyor'}</small>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <i class="fas fa-book-open text-accent"></i>
+                                            <span class="small">Sayfa: ${
+                                                note.NotePage !== undefined && note.NotePage !== null
+                                                    ? note.NotePage
+                                                    : (note.notePage !== undefined && note.notePage !== null
+                                                        ? note.notePage
+                                                        : '-')
+                                            }</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    `).join('');
+                    } else {
+                        downloadedNotesDiv.innerHTML = `
+                            <div class="text-center py-4">
+                                <i class="fas fa-file-alt text-muted fa-3x mb-3"></i>
+                                <p class="text-muted">Henüz alınan not bulunmuyor.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading downloaded notes:', error);
+                    document.getElementById('downloadedNotes').innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-circle text-danger fa-3x mb-3"></i>
+                            <p class="text-danger">Notlar yüklenirken bir hata oluştu.</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Load downloaded notes when page loads
+        document.addEventListener('DOMContentLoaded', loadDownloadedNotes);
+
+        function trackChatFileDownload(fileUrl) {
+            // Extract note ID from file URL if it's a note file or chat file
+            const noteIdMatch = fileUrl.match(/\/(uploads|chat-files)\/([^\/]+)/);
+            if (noteIdMatch) {
+                const noteId = noteIdMatch[2]; // Use the second capture group which contains the file name
+                fetch('/NoteDownload/TrackDownload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `noteId=${noteId}&source=chat`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Download tracking failed:', data.message);
+                    } else {
+                        // Anında güncelleme
+                        loadDownloadedNotes();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error tracking download:', error);
+                });
+            }
+        }
+    </script>
+}
+
 <style>
     body {
         font-family: 'Inter', Arial, sans-serif;
@@ -165,70 +259,61 @@
     }
 
     .profile-main-container {
-        max-width: 1100px;
-        margin: auto;
-        padding: 1rem;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
     }
 
     .profile-card-modern {
         border-radius: 1.5rem;
         background: #ffffff;
-        padding: 2rem;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     }
 
-    .profile-picture-container, .profile-picture, .profile-picture-placeholder {
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        margin-bottom: 1rem;
+    .profile-picture-container {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+        position: relative;
     }
 
     .profile-picture {
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        border: 3px solid #fff;
     }
 
     .profile-picture-placeholder {
-        background: #f0f4ff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 3px solid #fff;
+        width: 100%;
+        height: 100%;
+        background: #f8f9fa;
+        color: #6c757d;
     }
 
     .text-main {
         color: #8BA4FD;
-        font-weight: 700;
     }
 
     .text-accent {
         color: #9ED3C2;
-        font-weight: 700;
-    }
-
-    .badge-main,
-    .badge-accent,
-    .badge-year {
-        font-weight: 600;
-        border-radius: 0.5rem;
-        font-size: 0.9rem;
-        padding: 0.4em 1em;
-        color: #fff;
     }
 
     .badge-main {
-        background: #8BA4FD;
-    }
-
-    .badge-accent {
-        background: #9ED3C2;
+        background: linear-gradient(45deg, #8BA4FD, #9ED3C2);
+        color: white;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.2);
+        border: none;
     }
 
     .badge-year {
-        background: #FFC6D1;
+        background: linear-gradient(45deg, #FF9A8B, #FF6A88);
+        color: white;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
     }
 
     .btn-main {
@@ -248,130 +333,82 @@
         }
 
     .bg-main {
-        background: #8BA4FD !important;
+        background: linear-gradient(45deg, #8BA4FD, #9ED3C2);
     }
 
     .bg-accent {
-        background: #9ED3C2 !important;
+        background: linear-gradient(45deg, #FF9A8B, #FF6A88);
     }
 
     .note-mini-card {
         aspect-ratio: 1 / 1;
         width: 100%;
-        border-radius: 1.25rem;
-        background: #ffffff;
-        transition: all 0.3s ease;
+        border-radius: 1.5rem;
+        background: linear-gradient(145deg, #ffffff, #f8faff);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         cursor: pointer;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 1.25rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1.5rem;
+        box-shadow: 0 8px 24px rgba(139, 164, 253, 0.12);
+        border: 1px solid rgba(139, 164, 253, 0.1);
         position: relative;
         overflow: hidden;
     }
 
-        .note-mini-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #8BA4FD, #9ED3C2);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
+    .note-mini-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 6px;
+        background: linear-gradient(90deg, #8BA4FD, #9ED3C2);
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
 
-        .note-mini-card:hover {
-            transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 12px 30px rgba(139, 164, 253, 0.15);
-            background: #f8faff;
-        }
+    .note-mini-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 16px 32px rgba(139, 164, 253, 0.2);
+        background: linear-gradient(145deg, #ffffff, #f0f4ff);
+    }
 
-            .note-mini-card:hover::before {
-                opacity: 1;
-            }
+    .note-mini-card:hover::before {
+        height: 8px;
+        opacity: 1;
+    }
 
     .note-title {
-        font-weight: 600;
-        font-size: 1.1rem;
+        font-weight: 700;
+        font-size: 1.2rem;
         color: #2D3748;
-        margin-bottom: 0.75rem;
-        text-align: center;
+        margin-bottom: 1rem;
+        text-align: left;
         width: 100%;
         line-height: 1.4;
+        position: relative;
+        padding-bottom: 0.5rem;
     }
 
-    .card {
-        border-radius: 1.25rem;
-        border: none;
-        background: #fff;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-    }
-
-    .card-header {
-        border-radius: 1.25rem 1.25rem 0 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-        background: #f8faff;
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
-    .card-body {
-        font-size: 1rem;
-        padding: 1.5rem;
-    }
-
-    .form-label {
-        margin-bottom: 0.5rem;
-        font-size: 1.05rem;
-        text-align: center;
-        width: 100%;
-        display: block;
-    }
-    .form-control {
-        border: 2px solid #b5c7fa;
-        border-radius: 1rem;
-        background: #f7f9ff;
-        color: #222;
-        font-size: 1rem;
-        padding: 0.75rem 1rem;
-        transition: border-color 0.2s, box-shadow 0.2s;
-        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.07);
-        width: 100%;
-        box-sizing: border-box;
-    }
-    .form-control:focus {
-        border-color: #8BA4FD;
-        box-shadow: 0 0 0 0.2rem rgba(139, 164, 253, 0.13);
-        background: #f0f4ff;
-    }
-    .profile-bio-box {
-        background: linear-gradient(90deg, #e3eaff 60%, #f7f9ff 100%);
-        border: 2px solid #b5c7fa;
-        border-radius: 1rem;
-        padding: 1rem 1.2rem;
-        color: #222;
-        font-size: 1rem;
-        margin-bottom: 1.2rem;
-        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.07);
-        min-height: 70px;
-        width:400px;
-        align-self:center;
-        display: flex;
-        align-items: center;
-        margin-left: auto;
-        margin-right: auto;
+    .note-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 40px;
+        height: 3px;
+        background: linear-gradient(90deg, #8BA4FD, #9ED3C2);
+        border-radius: 2px;
     }
 
     .notes-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 2rem;
         margin-top: 2rem;
+        padding: 1rem;
     }
 
     .note-card-wrapper {
@@ -382,32 +419,28 @@
     }
 
     @@media (max-width: 991px) {
-        .profile-main-container
+        .profile-main-container {
+            max-width: 98vw;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
 
-    {
-        max-width: 98vw;
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
+        .profile-picture-container, .profile-picture, .profile-picture-placeholder {
+            width: 80px;
+            height: 80px;
+        }
 
-    .profile-picture-container, .profile-picture, .profile-picture-placeholder {
-        width: 80px;
-        height: 80px;
-    }
-
-    .notes-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
+        .notes-grid {
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
     }
 
     @@media (max-width: 600px) {
-        .notes-grid
-
-    {
-        grid-template-columns: 1fr;
-    }
-
+        .notes-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
     }
 
     .profile-edit-form {
@@ -441,5 +474,186 @@
         display: flex;
         align-items: center;
         justify-content: flex-start;
+    }
+
+    .profile-info {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .profile-info h3 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        font-size: 1.4rem;
+    }
+
+    .profile-info p {
+        margin-bottom: 10px;
+        color: #495057;
+    }
+
+    .profile-info strong {
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .form-control {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 10px 15px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #4a90e2;
+        box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
+    }
+
+    .btn-primary {
+        background-color: #4a90e2;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background-color: #357abd;
+        transform: translateY(-1px);
+    }
+
+    .note-card {
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        transition: transform 0.2s ease;
+        border: 1px solid #e9ecef;
+    }
+
+    .note-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .note-header {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 12px 12px 0 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .note-title {
+        color: #2c3e50;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .note-category {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-top: 5px;
+    }
+
+    .note-content {
+        padding: 15px;
+        color: #495057;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .note-footer {
+        padding: 12px 15px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 12px 12px;
+    }
+
+    .note-meta {
+        background: rgba(139, 164, 253, 0.05);
+        padding: 0.75rem;
+        border-radius: 1rem;
+        margin-top: 1rem;
+    }
+
+    .note-owner {
+        color: #8BA4FD;
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .note-owner i {
+        color: #9ED3C2;
+    }
+
+    .note-source {
+        display: inline-block;
+        padding: 0.4rem 0.8rem;
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .note-source.note-detail {
+        background: linear-gradient(45deg, #8BA4FD, #9ED3C2);
+        color: white;
+    }
+
+    .note-source.chat {
+        background: linear-gradient(45deg, #FF9A8B, #FF6A88);
+        color: white;
+    }
+
+    .note-date {
+        color: #6c757d;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .note-date i {
+        color: #8BA4FD;
+    }
+
+    .note-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn-sm {
+        padding: 5px 10px;
+        font-size: 0.85rem;
+        border-radius: 6px;
+    }
+
+    .btn-outline-primary {
+        color: #4a90e2;
+        border-color: #4a90e2;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #4a90e2;
+        color: #fff;
+    }
+
+    .btn-outline-danger {
+        color: #dc3545;
+        border-color: #dc3545;
+    }
+
+    .btn-outline-danger:hover {
+        background-color: #dc3545;
+        color: #fff;
     }
 </style>

@@ -23,84 +23,168 @@ namespace NoteSharingApp.Hubs
             System.Diagnostics.Debug.WriteLine($"User {username} joined chat with connection {Context.ConnectionId}");
         }
 
-        public async Task SendMessage(string senderUsername, string receiverUsername, string message)
+        public async Task SendMessage(string senderUsername, string receiverUsername, string message, string chatType = "personal")
         {
-            try 
+            try
             {
-                // Önce kullanıcıları kontrol et
-                var sender = await _database.Users.Find(u => u.UserName == senderUsername).FirstOrDefaultAsync();
-                var receiver = await _database.Users.Find(u => u.UserName == receiverUsername).FirstOrDefaultAsync();
-
-                if (sender == null)
+                if (string.IsNullOrEmpty(senderUsername) || string.IsNullOrEmpty(receiverUsername))
                 {
-                    throw new Exception($"Gönderen kullanıcı ({senderUsername}) bulunamadı");
+                    throw new Exception("Gönderen veya alıcı kullanıcı adı boş olamaz");
                 }
 
-                if (receiver == null)
-                {
-                    throw new Exception($"Alıcı kullanıcı ({receiverUsername}) bulunamadı");
-                }
+                System.Diagnostics.Debug.WriteLine($"SendMessage called: Sender={senderUsername}, Receiver={receiverUsername}, Type={chatType}, Message={message}");
 
-                // Find existing chat or create new one
-                var chat = await _database.Chats
-                    .Find(c => 
-                        (c.SenderUsername == senderUsername && c.ReceiverUsername == receiverUsername) ||
-                        (c.SenderUsername == receiverUsername && c.ReceiverUsername == senderUsername))
-                    .FirstOrDefaultAsync();
-
-                if (chat == null)
+                if (chatType == "personal")
                 {
-                    // Create new chat
-                    chat = new Chat
+                    // Personal chat message handling
+                    var sender = await _database.Users.Find(u => u.UserName == senderUsername).FirstOrDefaultAsync();
+                    var receiver = await _database.Users.Find(u => u.UserName == receiverUsername).FirstOrDefaultAsync();
+
+                    if (sender == null)
                     {
-                        UsersId = new List<ObjectId> { sender.UserId, receiver.UserId },
+                        throw new Exception($"Gönderen kullanıcı bulunamadı: {senderUsername}");
+                    }
+                    if (receiver == null)
+                    {
+                        throw new Exception($"Alıcı kullanıcı bulunamadı: {receiverUsername}");
+                    }
+
+                    // Find or create chat
+                    var chat = await _database.Chats
+                        .Find(c => 
+                            (c.SenderUsername == senderUsername && c.ReceiverUsername == receiverUsername) ||
+                            (c.SenderUsername == receiverUsername && c.ReceiverUsername == senderUsername))
+                        .FirstOrDefaultAsync();
+
+                    if (chat == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Creating new chat between {senderUsername} and {receiverUsername}");
+                        chat = new Chat
+                        {
+                            UsersId = new List<ObjectId> { sender.UserId, receiver.UserId },
+                            SenderUsername = senderUsername,
+                            ReceiverUsername = receiverUsername,
+                            Messages = new List<Message>(),
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _database.Chats.InsertOneAsync(chat);
+                        System.Diagnostics.Debug.WriteLine($"New chat created with ID: {chat.Id}");
+                    }
+
+                    // Create new message
+                    var newMessage = new Message
+                    {
                         SenderUsername = senderUsername,
-                        ReceiverUsername = receiverUsername,
-                        Messages = new List<Message>(),
+                        Content = message,
                         CreatedAt = DateTime.UtcNow
                     };
-                    await _database.Chats.InsertOneAsync(chat);
+
+                    System.Diagnostics.Debug.WriteLine($"Creating new message: {message} from {senderUsername}");
+
+                    // Update chat with new message
+                    var update = Builders<Chat>.Update.Push(c => c.Messages, newMessage);
+                    var result = await _database.Chats.UpdateOneAsync(
+                        c => c.Id == chat.Id,
+                        update
+                    );
+
+                    if (result.ModifiedCount == 0)
+                    {
+                        throw new Exception($"Mesaj veritabanına kaydedilemedi. ChatId: {chat.Id}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Message saved to database. ChatId={chat.Id}, MessageId={newMessage.Id}");
+
+                    // Send message to sender
+                    await Clients.Caller.SendAsync("ReceiveMessage", senderUsername, message);
+                    System.Diagnostics.Debug.WriteLine($"Message sent to sender: {senderUsername}");
+
+                    // Send message to receiver if online
+                    if (UserConnections.TryGetValue(receiverUsername, out string receiverConnectionId))
+                    {
+                        await Clients.Client(receiverConnectionId).SendAsync("ReceiveMessage", senderUsername, message);
+                        System.Diagnostics.Debug.WriteLine($"Message sent to receiver: {receiverUsername}");
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Receiver {receiverUsername} is not online");
+                    }
                 }
-
-                // Create new message
-                var newMessage = new Message
+                else if (chatType == "group")
                 {
-                    SenderUsername = senderUsername,
-                    Content = message,
-                    CreatedAt = DateTime.UtcNow
-                };
+                    // Group chat message handling
+                    if (!ObjectId.TryParse(receiverUsername, out var groupId))
+                    {
+                        throw new Exception("Geçersiz grup kimliği");
+                    }
 
-                // Add message to chat
-                if (chat.Messages == null)
-                {
-                    chat.Messages = new List<Message>();
-                }
+                    // Try normal groups first
+                    var group = await _database.Groups
+                        .Find(g => g.Id == groupId.ToString())
+                        .FirstOrDefaultAsync();
 
-                chat.Messages.Add(newMessage);
+                    if (group != null)
+                    {
+                        var newMessage = new GroupMessage
+                        {
+                            SenderId = Context.User.FindFirst("sub")?.Value,
+                            SenderUsername = senderUsername,
+                            Content = message,
+                            SentAt = DateTime.UtcNow
+                        };
 
-                // Update chat in database
-                var filter = Builders<Chat>.Filter.Eq(c => c.Id, chat.Id);
-                var update = Builders<Chat>.Update.Set(c => c.Messages, chat.Messages);
-                var result = await _database.Chats.UpdateOneAsync(filter, update);
+                        var update = Builders<Group>.Update.Push(g => g.Messages, newMessage);
+                        var result = await _database.Groups.UpdateOneAsync(
+                            g => g.Id == groupId.ToString(),
+                            update
+                        );
 
-                if (result.ModifiedCount == 0)
-                {
-                    throw new Exception("Mesaj veritabanına kaydedilemedi");
-                }
+                        if (result.ModifiedCount == 0)
+                        {
+                            throw new Exception("Mesaj kaydedilemedi");
+                        }
 
-                // Send message to sender
-                await Clients.Caller.SendAsync("ReceiveMessage", senderUsername, message);
+                        await Clients.Group(groupId.ToString()).SendAsync("ReceiveGroupMessage", groupId.ToString(), senderUsername, message);
+                        return;
+                    }
 
-                // Send message to receiver if online
-                if (UserConnections.TryGetValue(receiverUsername, out string receiverConnectionId))
-                {
-                    await Clients.Client(receiverConnectionId).SendAsync("ReceiveMessage", senderUsername, message);
+                    // Try school groups if not found in normal groups
+                    var schoolGroup = await _database.SchoolGroups
+                        .Find(g => g.Id == groupId)
+                        .FirstOrDefaultAsync();
+
+                    if (schoolGroup != null)
+                    {
+                        var newMessage = new Message
+                        {
+                            SenderUsername = senderUsername,
+                            Content = message,
+                            CreatedAt = DateTime.UtcNow
+                        };
+
+                        var update = Builders<SchoolGroup>.Update.Push(g => g.Messages, newMessage);
+                        var result = await _database.SchoolGroups.UpdateOneAsync(
+                            g => g.Id == groupId,
+                            update
+                        );
+
+                        if (result.ModifiedCount == 0)
+                        {
+                            throw new Exception("Mesaj kaydedilemedi");
+                        }
+
+                        await Clients.Group(groupId.ToString()).SendAsync("ReceiveGroupMessage", groupId.ToString(), senderUsername, message);
+                        return;
+                    }
+
+                    throw new Exception("Grup bulunamadı");
                 }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SendMessage Error: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Sender: {senderUsername}, Receiver: {receiverUsername}");
+                System.Diagnostics.Debug.WriteLine($"Stack Trace: {ex.StackTrace}");
+                System.Diagnostics.Debug.WriteLine($"Sender: {senderUsername}, Receiver: {receiverUsername}, Type: {chatType}");
                 throw;
             }
         }
@@ -145,26 +229,21 @@ namespace NoteSharingApp.Hubs
                     CreatedAt = DateTime.UtcNow
                 };
 
-                if (chat.Messages == null)
-                {
-                    chat.Messages = new List<Message>();
-                }
-
-                chat.Messages.Add(newMessage);
-
-                var filter = Builders<Chat>.Filter.Eq(c => c.Id, chat.Id);
-                var update = Builders<Chat>.Update.Set(c => c.Messages, chat.Messages);
-                var result = await _database.Chats.UpdateOneAsync(filter, update);
+                var update = Builders<Chat>.Update.Push(c => c.Messages, newMessage);
+                var result = await _database.Chats.UpdateOneAsync(
+                    c => c.Id == chat.Id,
+                    update
+                );
 
                 if (result.ModifiedCount == 0)
                 {
                     throw new Exception("Dosya mesajı veritabanına kaydedilemedi");
                 }
 
-                // Send file message to sender
+                // Send to sender
                 await Clients.Caller.SendAsync("ReceiveFile", senderUsername, fileName, fileUrl);
 
-                // Send file message to receiver if online
+                // Send to receiver if online
                 if (UserConnections.TryGetValue(receiverUsername, out string receiverConnectionId))
                 {
                     await Clients.Client(receiverConnectionId).SendAsync("ReceiveFile", senderUsername, fileName, fileUrl);
@@ -283,6 +362,83 @@ namespace NoteSharingApp.Hubs
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SendGroupMessage Error: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task SendGroupFile(string groupId, string fileName, string fileUrl)
+        {
+            try
+            {
+                var senderUsername = Context.User.Identity.Name;
+                if (string.IsNullOrEmpty(senderUsername))
+                {
+                    throw new Exception("Kullanıcı kimliği bulunamadı");
+                }
+
+                // Normal grup koleksiyonunda ara
+                var group = await _database.Groups
+                    .Find(g => g.Id == groupId)
+                    .FirstOrDefaultAsync();
+
+                if (group != null)
+                {
+                    var newMessage = new GroupMessage
+                    {
+                        SenderId = Context.User.FindFirst("sub")?.Value,
+                        SenderUsername = senderUsername,
+                        Content = $"[Dosya] {fileName}",
+                        FileUrl = fileUrl,
+                        FileName = fileName,
+                        SentAt = DateTime.UtcNow
+                    };
+                    var update = Builders<Group>.Update.Push(g => g.Messages, newMessage);
+                    var result = await _database.Groups.UpdateOneAsync(
+                        g => g.Id == groupId,
+                        update
+                    );
+                    if (result.ModifiedCount == 0)
+                    {
+                        throw new Exception("Dosya mesajı kaydedilemedi");
+                    }
+                    await Clients.Group(groupId).SendAsync("ReceiveGroupFile", groupId, senderUsername, fileName, fileUrl);
+                    return;
+                }
+
+                // Eğer normal grupta bulunamazsa, okul grubunda ara
+                var schoolGroup = await _database.SchoolGroups
+                    .Find(g => g.Id == ObjectId.Parse(groupId))
+                    .FirstOrDefaultAsync();
+
+                if (schoolGroup != null)
+                {
+                    var newMessage = new Message
+                    {
+                        SenderUsername = senderUsername,
+                        Content = $"[Dosya] {fileName}",
+                        FileUrl = fileUrl,
+                        IsFile = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    if (schoolGroup.Messages == null)
+                        schoolGroup.Messages = new List<Message>();
+                    schoolGroup.Messages.Add(newMessage);
+                    var update = Builders<SchoolGroup>.Update.Set(g => g.Messages, schoolGroup.Messages);
+                    var result = await _database.SchoolGroups.UpdateOneAsync(
+                        g => g.Id == schoolGroup.Id,
+                        update
+                    );
+                    if (result.ModifiedCount == 0)
+                    {
+                        throw new Exception("Dosya mesajı kaydedilemedi");
+                    }
+                    await Clients.Group(groupId).SendAsync("ReceiveGroupFile", groupId, senderUsername, fileName, fileUrl);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SendGroupFile Error: {ex.Message}");
                 throw;
             }
         }

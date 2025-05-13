@@ -3,6 +3,7 @@ using MongoDB.Driver;
 using MongoDB.Bson;
 using NoteSharingApp.Models;
 using System.Security.Claims;
+using NoteSharingApp.Repository;
 
 namespace NoteSharingApp.Controllers
 {
@@ -10,12 +11,16 @@ namespace NoteSharingApp.Controllers
     {
         private readonly IMongoCollection<User> _users;
         private readonly IMongoCollection<Note> _notes;
+        private readonly DownloadedNoteRepository _downloadedNoteRepository;
+        private readonly DatabaseContext _database;
 
-        public ProfileController(IMongoClient mongoClient)
+        public ProfileController(IMongoClient mongoClient, DatabaseContext database)
         {
-            var database = mongoClient.GetDatabase("NoteSharingApp");
-            _users = database.GetCollection<User>("Users");
-            _notes = database.GetCollection<Note>("Notes");
+            var db = mongoClient.GetDatabase("NoteSharingApp");
+            _users = db.GetCollection<User>("Users");
+            _notes = db.GetCollection<Note>("Notes");
+            _database = database;
+            _downloadedNoteRepository = new DownloadedNoteRepository(database);
         }
 
         public async Task<IActionResult> Index()
@@ -39,14 +44,12 @@ namespace NoteSharingApp.Controllers
 
             // Update user's shared notes count
             user.SharedNotesCount = sharedNotes.Count;
-            user.ReceivedNotesCount = 0; // Set to 0 since note sharing is not implemented yet
 
             // Update the user document in the database
             await _users.UpdateOneAsync(
                 u => u.UserId == user.UserId,
                 Builders<User>.Update
-                    .Set(u => u.SharedNotesCount, user.SharedNotesCount)
-                    .Set(u => u.ReceivedNotesCount, user.ReceivedNotesCount));
+                    .Set(u => u.SharedNotesCount, user.SharedNotesCount));
 
             var viewModel = new ProfileViewModel
             {

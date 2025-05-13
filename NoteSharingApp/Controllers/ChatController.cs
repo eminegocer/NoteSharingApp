@@ -15,10 +15,12 @@ namespace NoteSharingApp.Controllers
     public class ChatController : Controller
     {
         private readonly DatabaseContext _database;
+        private readonly DownloadedNoteRepository _downloadedNoteRepository;
 
         public ChatController(DatabaseContext database)
         {
             _database = database;
+            _downloadedNoteRepository = new DownloadedNoteRepository(database);
         }
 
         [HttpPost]
@@ -147,6 +149,12 @@ namespace NoteSharingApp.Controllers
                 }
 
                 var fileUrl = $"/chat-files/{uniqueFileName}";
+
+                // Dosya yüklendiğinde alınan notlar kısmına eklenmesi için TrackDownload metodunu çağır
+                var noteId = uniqueFileName; // Dosya adını noteId olarak kullanıyoruz
+                var source = "chat"; // Kaynağı "chat" olarak belirtiyoruz
+                await TrackDownload(noteId, source);
+
                 return Json(new
                 {
                     success = true,
@@ -466,6 +474,107 @@ namespace NoteSharingApp.Controllers
             {
                 return Json(new List<object>());
             }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadGroupFile(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                {
+                    return Json(new { success = false, message = "Dosya seçilmedi." });
+                }
+
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "group-files");
+                if (!Directory.Exists(uploadsFolder))
+                {
+                    Directory.CreateDirectory(uploadsFolder);
+                }
+
+                var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                var fileUrl = $"/group-files/{uniqueFileName}";
+                return Json(new
+                {
+                    success = true,
+                    fileName = file.FileName,
+                    fileUrl = fileUrl
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Dosya yüklenirken bir hata oluştu: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> TrackDownload(string noteId, string source)
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return Json(new { success = false, message = "Bu işlem için giriş yapmalısınız." });
+            }
+
+            if (!ObjectId.TryParse(noteId, out var parsedNoteId))
+            {
+                return Json(new { success = false, message = "Geçersiz not kimliği." });
+            }
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!ObjectId.TryParse(userId, out var parsedUserId))
+            {
+                return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
+            }
+
+            // Check if user has already downloaded this note
+            var hasDownloaded = await _downloadedNoteRepository.HasUserDownloadedNote(parsedUserId, parsedNoteId);
+            if (!hasDownloaded)
+            {
+                // Notun detaylarını al
+                var note = await _database.Notes.Find(n => n.NoteId == parsedNoteId).FirstOrDefaultAsync();
+                if (note == null)
+                {
+                    return Json(new { success = false, message = "Not bulunamadı." });
+                }
+
+                // Create new download record with details
+                var downloadedNote = new DownloadedNote
+                {
+                    UserId = parsedUserId,
+                    NoteId = parsedNoteId,
+                    Source = source,
+                    DownloadedAt = DateTime.UtcNow,
+                    NoteTitle = note.Title,
+                    NoteOwnerId = note.OwnerId,
+                    NoteOwnerUsername = note.OwnerUsername,
+                    NoteCategory = note.Category,
+                    NotePdfFilePath = note.PdfFilePath,
+                    NotePage = note.Page,
+                    NoteContent = note.Content
+                };
+
+                await _downloadedNoteRepository.AddAsync(downloadedNote);
+
+                // Update user's received notes count
+                var user = await _database.Users.Find(u => u.UserId == parsedUserId).FirstOrDefaultAsync();
+                if (user != null)
+                {
+                    user.ReceivedNotesCount++;
+                    await _database.Users.UpdateOneAsync(
+                        u => u.UserId == parsedUserId,
+                        Builders<User>.Update.Set(u => u.ReceivedNotesCount, user.ReceivedNotesCount)
+                    );
+                }
+            }
+
+            return Json(new { success = true });
         }
     }
 }
