@@ -5,7 +5,7 @@ using System;
 
 public class GenericRepository<T> where T : class
 {
-    private readonly IMongoCollection<T> _collection;
+    protected readonly IMongoCollection<T> _collection;
 
     public GenericRepository(DatabaseContext context, string collectionName)
     {

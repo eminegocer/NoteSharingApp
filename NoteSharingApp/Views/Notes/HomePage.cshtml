@@ -536,6 +536,18 @@
                             chatContent.insertAdjacentHTML('beforeend', tempDiv.innerHTML);
                             chatContent.classList.remove('hidden');
 
+                            // Sohbet paneli yüklendikten sonra fileInput'a event listener ekle
+                            const fileInput = document.getElementById("fileInput");
+                            const messageInput = document.getElementById("messageInput");
+                            if (fileInput && messageInput) {
+                                fileInput.addEventListener('change', function(event) {
+                                    const file = event.target.files[0];
+                                    if (file) {
+                                        messageInput.value = file.name;
+                                    }
+                                });
+                            }
+
                             // Çarpı butonuna tıklama olayını ekle
                             document.getElementById('closePersonalChatBtn').addEventListener('click', function() {
                                 mainContent.classList.remove('hidden');
@@ -594,7 +606,7 @@
                                 const message = messageInput.value.trim();
                                 
                                 if (message) {
-                                    connection.invoke("SendMessage", '@User.Identity.Name', targetUsername, message);
+                                    connection.invoke("SendMessage", '@User.Identity.Name', targetUsername, message, "personal");
                                         messageInput.value = '';
                                 }
                             };
@@ -985,35 +997,39 @@
                                     const userColor = getUserColor(message.senderUsername);
                                     const messageDiv = document.createElement('div');
                                     messageDiv.className = `w-full flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} mb-3`;
-
                                     const bubbleContainer = document.createElement('div');
                                     bubbleContainer.className = `max-w-[75%]`;
-
                                     const messageBubble = document.createElement('div');
                                     let bubbleBaseClasses = 'rounded-lg py-2 px-3 shadow-sm inline-block';
                                     messageBubble.className = `${bubbleBaseClasses} ${userColor.bg} ${userColor.text}`;
-
                                     const senderNameSpan = document.createElement('div');
                                     senderNameSpan.className = `text-xs font-semibold mb-1 ${userColor.textLight}`;
                                     senderNameSpan.textContent = message.senderUsername;
                                     messageBubble.appendChild(senderNameSpan);
-
-                                    const messageContent = document.createElement('p');
-                                    messageContent.className = "break-words text-sm";
-                                    messageContent.textContent = message.content;
-                                    messageBubble.appendChild(messageContent);
-
+                                    if (message.fileUrl) {
+                                        // Dosya mesajı
+                                        const fileLink = document.createElement('a');
+                                        fileLink.href = message.fileUrl;
+                                        fileLink.target = '_blank';
+                                        fileLink.className = 'underline hover:no-underline text-sm';
+                                        fileLink.textContent = message.content.replace('[Dosya] ', '');
+                                        messageBubble.appendChild(fileLink);
+                                    } else {
+                                        // Normal mesaj
+                                        const messageContent = document.createElement('p');
+                                        messageContent.className = "break-words text-sm";
+                                        messageContent.textContent = message.content;
+                                        messageBubble.appendChild(messageContent);
+                                    }
                                     const timestampSpan = document.createElement('span');
                                     timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
                                     const messageDate = new Date(message.sentAt || message.createdAt);
                                     timestampSpan.textContent = messageDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                     messageBubble.appendChild(timestampSpan);
-
                                     bubbleContainer.appendChild(messageBubble);
                                     messageDiv.appendChild(bubbleContainer);
                                     messagesDiv.appendChild(messageDiv);
                                 });
-
                                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
                             } else {
                                 const noMessages = document.createElement('div');
@@ -1110,6 +1126,100 @@
                             sendGroupMessage(groupId);
                         }
                     });
+
+                    // Grup dosya inputu ile mesaj inputunu bağla ve dosya gönderimini ayarla
+                    setTimeout(() => {
+                        const groupFileInput = document.querySelector("#activeGroupChatPanel #groupFileInput");
+                        const groupMessageInput = document.querySelector("#activeGroupChatPanel #groupMessageInput");
+                        const sendBtn = document.getElementById('sendGroupMessageBtn');
+                        let selectedGroupFile = null;
+
+                        if (groupFileInput && groupMessageInput) {
+                            groupFileInput.addEventListener('change', function(event) {
+                                const file = event.target.files[0];
+                                if (file) {
+                                    groupMessageInput.value = file.name;
+                                    selectedGroupFile = file;
+                                }
+                            });
+                        }
+
+                        // Mesaj gönderme butonuna tıklanınca dosya varsa önce yükle, sonra SignalR ile gönder
+                        if (sendBtn && groupMessageInput) {
+                            sendBtn.onclick = async function() {
+                                const message = groupMessageInput.value.trim();
+                                if (selectedGroupFile) {
+                                    // Dosya yükle
+                                    const formData = new FormData();
+                                    formData.append('file', selectedGroupFile);
+                                    try {
+                                        const response = await fetch('/Chat/UploadGroupFile', {
+                                            method: 'POST',
+                                            body: formData
+                                        });
+                                        const result = await response.json();
+                                        if (result.success) {
+                                            if (signalRConnection && signalRConnection.state === "Connected") {
+                                                await signalRConnection.invoke("SendGroupFile", groupId, result.fileName, result.fileUrl);
+                                                groupMessageInput.value = '';
+                                                selectedGroupFile = null;
+                                                groupFileInput.value = '';
+                                            } else {
+                                                alert("Bağlantı hatası. Lütfen sayfayı yenileyin.");
+                                            }
+                                        } else {
+                                            alert(result.message || "Dosya yüklenemedi.");
+                                        }
+                                    } catch (error) {
+                                        alert("Dosya yüklenirken bir hata oluştu.");
+                                    }
+                                    return;
+                                }
+                                // Normal mesaj gönder
+                                if (message) {
+                                    sendGroupMessage(groupId);
+                                }
+                            };
+                        }
+                    }, 100);
+
+                    // SignalR ReceiveGroupFile event'i: dosya mesajını link olarak göster
+                    if (signalRConnection) {
+                        signalRConnection.off("ReceiveGroupFile"); // Önce eskiyi kaldır
+                        signalRConnection.on("ReceiveGroupFile", (receivedGroupId, senderUsername, fileName, fileUrl) => {
+                            if (receivedGroupId === currentActiveGroupId) {
+                                const messagesDiv = document.getElementById('activeGroupMessages');
+                                const isCurrentUser = senderUsername === '@User.Identity.Name';
+                                const userColor = getUserColor(senderUsername);
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = `w-full flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'} mb-3`;
+                                const bubbleContainer = document.createElement('div');
+                                bubbleContainer.className = `max-w-[75%]`;
+                                const messageBubble = document.createElement('div');
+                                let bubbleBaseClasses = 'rounded-lg py-2 px-3 shadow-sm inline-block';
+                                messageBubble.className = `${bubbleBaseClasses} ${userColor.bg} ${userColor.text}`;
+                                const senderNameSpan = document.createElement('div');
+                                senderNameSpan.className = `text-xs font-semibold mb-1 ${userColor.textLight}`;
+                                senderNameSpan.textContent = senderUsername;
+                                messageBubble.appendChild(senderNameSpan);
+                                // Dosya linki
+                                const fileLink = document.createElement('a');
+                                fileLink.href = fileUrl;
+                                fileLink.target = '_blank';
+                                fileLink.className = 'underline hover:no-underline text-sm';
+                                fileLink.textContent = fileName;
+                                messageBubble.appendChild(fileLink);
+                                const timestampSpan = document.createElement('span');
+                                timestampSpan.className = `text-xs ${userColor.textLight} block mt-1 text-right opacity-75`;
+                                timestampSpan.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                messageBubble.appendChild(timestampSpan);
+                                bubbleContainer.appendChild(messageBubble);
+                                messageDiv.appendChild(bubbleContainer);
+                                messagesDiv.appendChild(messageDiv);
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            }
+                        });
+                    }
                 }
 
                 // Grup mesajı gönderme fonksiyonu
@@ -1148,6 +1258,37 @@
                         alert("Mesaj gönderilemedi. Lütfen tekrar deneyin.");
                     }
                 }
+
+                const searchSchoolGroupsBtn = document.getElementById('searchSchoolGroupsBtn');
+                const schoolGroupSearchInput = document.getElementById('schoolGroupSearchInput');
+                const selectedGroupIdInput = document.getElementById('selectedGroupId');
+
+                searchSchoolGroupsBtn.addEventListener('click', function() {
+                    const groupId = selectedGroupIdInput.value;
+                    const groupName = schoolGroupSearchInput.value;
+                    if (!groupId || !groupName) {
+                        alert('Lütfen önce bir grup seçin.');
+                        return;
+                    }
+                    // Onay ekranı (modal yerine basit confirm ile)
+                    if (confirm(`'${groupName}' grubuna katılmak istiyor musunuz?`)) {
+                        fetch('/Chat/JoinSchoolGroup', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(groupId)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Gruba başarıyla katıldınız!');
+                                // İsterseniz burada grupları yeniden yükleyebilirsiniz
+                            } else {
+                                alert(data.message || 'Gruba katılırken bir hata oluştu.');
+                            }
+                        })
+                        .catch(() => alert('Bir hata oluştu.'));
+                    }
+                });
             });
         </script>
     </aside>

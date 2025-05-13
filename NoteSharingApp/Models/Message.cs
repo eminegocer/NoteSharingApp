@@ -5,6 +5,10 @@ namespace NoteSharingApp.Models
 {
     public class Message
     {
+        [BsonId]
+        [BsonRepresentation(BsonType.ObjectId)]
+        public ObjectId Id { get; set; }
+
         [BsonElement("SenderUsername")]
         public string SenderUsername { get; set; }
 
@@ -23,6 +27,7 @@ namespace NoteSharingApp.Models
         public Message()
         {
             CreatedAt = DateTime.UtcNow;
+            Id = ObjectId.GenerateNewId();
         }
 
         public Message(string senderUsername, string content)
@@ -30,6 +35,7 @@ namespace NoteSharingApp.Models
             SenderUsername = senderUsername;
             Content = content;
             CreatedAt = DateTime.UtcNow;
+            Id = ObjectId.GenerateNewId();
         }
     }
 }

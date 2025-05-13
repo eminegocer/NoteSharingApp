@@ -27,7 +27,7 @@
                 <i class="fas fa-file-pdf mr-1"></i> PDF: 
                 @if (!string.IsNullOrEmpty(Model.PdfFilePath))
                 {
-                    <a href="@Model.PdfFilePath" target="_blank" class="text-blue-600 underline">İndir</a>
+                    <a href="@Model.PdfFilePath" target="_blank" class="text-blue-600 underline" onclick="trackDownload('@Model.NoteId', 'note_detail')">İndir</a>
                 }
                 else
                 {
@@ -43,6 +43,29 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function trackDownload(noteId, source) {
+            fetch('/NoteDownload/TrackDownload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `noteId=${noteId}&source=${source}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Download tracking failed:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error tracking download:', error);
+            });
+        }
+    </script>
+}
 
 <style>
 .geri-don-link {
