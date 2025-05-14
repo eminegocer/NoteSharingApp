@@ -16,7 +16,7 @@ namespace NoteSharingApp.Controllers.API
 {
     [Route("api/chat")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = "Bearer")]
+    [Authorize(AuthenticationSchemes = "Bearer,Cookies")]
     public class ChatApiController : ControllerBase
     {
         private readonly DatabaseContext _database;

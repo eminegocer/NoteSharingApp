@@ -223,7 +223,7 @@ namespace NoteSharingApp.Hubs
                 var newMessage = new Message
                 {
                     SenderUsername = senderUsername,
-                    Content = $"[Dosya] {fileName}",
+                    Content = fileName,
                     FileUrl = fileUrl,
                     IsFile = true,
                     CreatedAt = DateTime.UtcNow
@@ -387,7 +387,7 @@ namespace NoteSharingApp.Hubs
                     {
                         SenderId = Context.User.FindFirst("sub")?.Value,
                         SenderUsername = senderUsername,
-                        Content = $"[Dosya] {fileName}",
+                        Content = fileName,
                         FileUrl = fileUrl,
                         FileName = fileName,
                         SentAt = DateTime.UtcNow
@@ -415,7 +415,7 @@ namespace NoteSharingApp.Hubs
                     var newMessage = new Message
                     {
                         SenderUsername = senderUsername,
-                        Content = $"[Dosya] {fileName}",
+                        Content = fileName,
                         FileUrl = fileUrl,
                         IsFile = true,
                         CreatedAt = DateTime.UtcNow

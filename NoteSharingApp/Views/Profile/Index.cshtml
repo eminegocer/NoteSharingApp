@@ -220,33 +220,6 @@
 
         // Load downloaded notes when page loads
         document.addEventListener('DOMContentLoaded', loadDownloadedNotes);
-
-        function trackChatFileDownload(fileUrl) {
-            // Extract note ID from file URL if it's a note file or chat file
-            const noteIdMatch = fileUrl.match(/\/(uploads|chat-files)\/([^\/]+)/);
-            if (noteIdMatch) {
-                const noteId = noteIdMatch[2]; // Use the second capture group which contains the file name
-                fetch('/NoteDownload/TrackDownload', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `noteId=${noteId}&source=chat`
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        console.error('Download tracking failed:', data.message);
-                    } else {
-                        // Anında güncelleme
-                        loadDownloadedNotes();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error tracking download:', error);
-                });
-            }
-        }
     </script>
 }
 
@@ -606,11 +579,6 @@
 
     .note-source.note-detail {
         background: linear-gradient(45deg, #8BA4FD, #9ED3C2);
-        color: white;
-    }
-
-    .note-source.chat {
-        background: linear-gradient(45deg, #FF9A8B, #FF6A88);
         color: white;
     }
 

@@ -83,7 +83,12 @@
 
                     <!-- Navigasyon Linkleri -->
                     <div class="flex items-center space-x-4">
-                        <a href="/Profile" class="text-gray-600 hover:text-blue-700 text-sm">Profil</a>
+                        <a href="/Chat" class="text-gray-600 hover:text-blue-700 text-sm">
+                            <i class="fas fa-comments mr-1"></i>Sohbet
+                        </a>
+                        <a href="/Profile" class="text-gray-600 hover:text-blue-700 text-sm">
+                            <i class="fas fa-user mr-1"></i>Profil
+                        </a>
                         <a asp-controller="Home" asp-action="Index" class="btn bg-purple-600 hover:bg-purple-700 text-white text-sm px-3 py-1.5 rounded-lg transition-colors btn-primary">
                             Çıkış
                         </a>
@@ -113,6 +118,123 @@
             event.preventDefault();
             window.location.href = '/Account/Login';
         }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.6/signalr.min.js"></script>
+    <script>
+    // Kişisel sohbetler için SignalR ve sendMessage fonksiyonu
+    (function() {
+        let connection;
+        let currentUsername = null;
+        let targetUsername = null;
+        let chatType = "personal";
+        let messageInput, messagesDiv, fileInput, selectedFileInfo, selectedFileName, uploadProgress, selectedFile;
+
+        function initChatElements() {
+            messageInput = document.getElementById("messageInput");
+            messagesDiv = document.getElementById("messages");
+            fileInput = document.getElementById("fileInput");
+            selectedFileInfo = document.getElementById("selectedFileInfo");
+            selectedFileName = document.getElementById("selectedFileName");
+            uploadProgress = document.getElementById("uploadProgress");
+            selectedFile = null;
+        }
+
+        function getUsernames() {
+            // Partial yüklendiğinde #chatPartialRoot'tan güncel değerleri al
+            const root = document.getElementById('chatPartialRoot');
+            if (root) {
+                currentUsername = root.getAttribute('data-current-username') || '';
+                targetUsername = root.getAttribute('data-target-username') || '';
+            }
+            chatType = 'personal';
+        }
+
+        async function startConnection() {
+            if (!connection) {
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/chatHub")
+                    .withAutomaticReconnect()
+                    .configureLogging(signalR.LogLevel.Debug)
+                    .build();
+                connection.on("ReceiveMessage", (senderUsername, message) => {
+                    appendMessage(senderUsername, message, false);
+                });
+                connection.on("ReceiveFile", (senderUsername, fileName, fileUrl) => {
+                    appendMessage(senderUsername, fileName, true, fileUrl);
+                });
+            }
+            if (connection.state === "Disconnected") {
+                await connection.start();
+                await connection.invoke("JoinChat", currentUsername);
+            }
+        }
+
+        async function uploadAndSendFile(file) {
+            if (!file) return;
+            uploadProgress && uploadProgress.classList.remove('hidden');
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const response = await fetch('/Chat/UploadChatFile', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    if (connection && connection.state === "Connected") {
+                        await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
+                        setTimeout(() => { cancelFileUpload(); }, 1000);
+                        selectedFile = null;
+                        if (fileInput) fileInput.value = '';
+                        if (messageInput) messageInput.value = '';
+                    } else {
+                        alert("Bağlantı hatası. Lütfen sayfayı yenileyin.");
+                        cancelFileUpload();
+                    }
+                } else {
+                    alert(result.message || "Dosya yüklenemedi.");
+                    cancelFileUpload();
+                }
+            } catch (error) {
+                alert("Dosya yüklenirken bir hata oluştu.");
+                cancelFileUpload();
+            }
+        }
+
+        function appendMessage(senderUsername, content, isFile, fileUrl = null) {
+            if (!messagesDiv) return;
+            const messageDiv = document.createElement("div");
+            const isCurrentUser = senderUsername === currentUsername;
+            messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+            let messageContent = '';
+            if (isFile) {
+                messageContent = `<div class=\"flex items-center gap-2\"><i class=\"fas fa-file text-lg\"></i><a href=\"${fileUrl}\" target=\"_blank\" class=\"underline hover:no-underline\">${content}</a></div>`;
+            } else {
+                messageContent = `<p class=\"break-words\">${content}</p>`;
+            }
+            // Renkler: Gönderen (mavi), gelen (açık bej)
+            const bg = isCurrentUser ? '#3b82f6' : '#f8fafc';
+            const text = isCurrentUser ? 'white' : '#1e293b';
+            messageDiv.innerHTML = `<div style=\"background:${bg};color:${text}\" class=\"rounded-xl p-4 max-w-[60%] shadow-sm font-semibold\">${messageContent}<span class=\"text-xs block mt-1\" style=\"color:${isCurrentUser ? 'white' : '#64748b'}\">${new Date().toLocaleTimeString()}</span></div>`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        window.cancelFileUpload = function() {
+            if (fileInput) fileInput.value = '';
+            selectedFile = null;
+            if (selectedFileInfo) selectedFileInfo.classList.add('hidden');
+            if (uploadProgress) uploadProgress.classList.add('hidden');
+            if (messageInput) messageInput.value = '';
+        };
+
+        // Partial yüklendiğinde inputları ve kullanıcı adlarını güncelle
+        document.addEventListener('click', function() {
+            initChatElements();
+            getUsernames();
+        });
+    })();
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)
