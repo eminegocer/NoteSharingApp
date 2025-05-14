@@ -2,103 +2,60 @@
     var currentUsername = User.Identity?.Name ?? "";
 }
 
-<div class="flex flex-col h-[calc(100vh-8rem)]">
-    <!-- Sohbet Başlığı -->
-    <div class="bg-white border-b p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-            <i class="fas fa-user-circle text-2xl text-purple-500"></i>
-            <div>
-                <h3 class="font-semibold text-gray-800">@ViewBag.TargetUsername</h3>
-                <p class="text-xs text-gray-500">Çevrimiçi</p>
-            </div>
-        </div>
-        <button onclick="window.parent.closeChat()" class="text-gray-500 hover:text-purple-500 transition-colors">
-            <i class="fas fa-times"></i>
-        </button>
+<div id="chatPartialRoot" class="flex flex-col h-[calc(100vh-8rem)]" data-current-username="@User.Identity?.Name" data-target-username="@ViewBag.TargetUsername">
+    <!-- Başlık Barı -->
+    <div class="bg-[#f3e8ff] flex items-center justify-between px-6 py-3 rounded-t-xl">
+        <div class="font-bold text-lg text-[#7c3aed]">@ViewBag.TargetUsername</div>
+        <button onclick="(window.parent.closeChat ? window.parent.closeChat() : (window.closeChatPanel && window.closeChatPanel()))" class="text-[#a78bfa] hover:text-[#7c3aed] text-2xl">&times;</button>
     </div>
-
     <!-- Mesaj Alanı -->
-    <div id="messageArea" class="flex-1 bg-gray-50 p-4 overflow-y-auto">
-        <div id="messages" class="space-y-4">
-            @if (ViewBag.ChatHistory != null)
+    <div id="messages" class="flex-1 bg-[#fafafd] p-6 overflow-y-auto flex flex-col gap-4">
+        @if (ViewBag.ChatHistory != null)
+        {
+            foreach (var chat in ViewBag.ChatHistory)
             {
-                foreach (var chat in ViewBag.ChatHistory)
+                if (chat.Messages != null)
                 {
-                    if (chat.Messages != null)
+                    foreach (var message in chat.Messages)
                     {
-                        foreach (var message in chat.Messages)
-                        {
-                            var isCurrentUser = message.SenderUsername == currentUsername;
-                            <div class="flex @(isCurrentUser ? "justify-end" : "justify-start") mb-4">
-                                <div class="@(isCurrentUser ? "bg-purple-500 text-white" : "bg-white text-gray-800") rounded-lg p-3 max-w-[70%] shadow-sm">
+                        var isCurrentUser = message.SenderUsername == currentUsername;
+                        <div class="flex @(isCurrentUser ? "justify-end" : "justify-start")">
+                            <div class="flex flex-col max-w-[60%]">
+                                <div class="rounded-xl px-4 py-3 shadow-sm @(isCurrentUser ? "bg-[#dbeafe] text-[#1e293b]" : "bg-[#fecdd3] text-[#7f1d1d]")">
                                     @if (message.IsFile || !string.IsNullOrEmpty(message.FileUrl))
                                     {
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-file text-lg"></i>
-                                            <a href="@message.FileUrl" target="_blank" class="underline hover:no-underline" onclick="trackChatFileDownload('@message.FileUrl')">
-                                                @message.Content
-                                            </a>
-                                        </div>
+                                        <span class="inline-flex items-center">
+                                            <i class="fas fa-file text-lg mr-1"></i>
+                                            <a href="@message.FileUrl" target="_blank" class="underline hover:no-underline break-all">@message.Content.Replace("[Dosya]", "")</a>
+                                        </span>
                                     }
                                     else
                                     {
-                                        <p class="break-words">@message.Content</p>
+                                        <span class="break-words">@message.Content</span>
                                     }
-                                    <span class="text-xs @(isCurrentUser ? "text-purple-100" : "text-gray-500") block mt-1">
-                                        @message.CreatedAt.ToLocalTime().ToString("HH:mm")
-                                    </span>
+                                    <span class="text-xs mt-1 block @(isCurrentUser ? "text-[#6366f1] text-right" : "text-[#be185d] text-left")">@message.CreatedAt.ToLocalTime().ToString("HH:mm")</span>
                                 </div>
                             </div>
-                        }
+                        </div>
                     }
                 }
             }
-        </div>
+        }
     </div>
-
     <!-- Mesaj Yazma Alanı -->
-    <div class="bg-white border-t p-4">
-        <div class="flex gap-2">
-            <input type="file" id="fileInput" class="hidden" />
-            <button type="button" 
-                    onclick="document.getElementById('fileInput').click()"
-                    class="text-gray-500 hover:text-purple-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
-                <i class="fas fa-paperclip"></i>
-            </button>
-            <div class="flex-1 relative">
-                <input type="text" 
-                       id="messageInput"
-                       class="w-full border rounded-full px-4 py-2 focus:ring-2 focus:ring-purple-400 focus:border-purple-400 outline-none"
-                       placeholder="Mesajınızı yazın..."
-                       autocomplete="off">
-                <div id="selectedFileInfo" class="hidden absolute -top-10 left-0 right-0 bg-purple-50 text-sm p-2 rounded-lg border border-purple-100 shadow-sm">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-file text-purple-500"></i>
-                            <span id="selectedFileName" class="text-gray-600 text-xs truncate max-w-[200px]"></span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div id="uploadProgress" class="hidden">
-                                <div class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                            <button type="button" onclick="cancelFileUpload()" class="text-gray-500 hover:text-red-500 p-1">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <button type="button"
-                    onclick="sendMessage()"
-                    class="bg-purple-500 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-purple-600 transition-colors">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
+    <div class="bg-white border-t p-4 flex items-center gap-2 rounded-b-xl">
+        <input type="file" id="fileInput" class="hidden" />
+        <button type="button" onclick="document.getElementById('fileInput').click()" class="text-[#a78bfa] hover:text-[#7c3aed] p-2 rounded-full">
+            <i class="fas fa-paperclip"></i>
+        </button>
+        <input type="text" id="messageInput" class="flex-1 border rounded-full px-4 py-2 focus:ring-2 focus:ring-[#a78bfa] focus:border-[#a78bfa] outline-none" placeholder="Mesajınızı yazın..." autocomplete="off">
+        <button type="button" id="sendMessageBtn" class="bg-[#a78bfa] hover:bg-[#7c3aed] text-white rounded-full px-6 py-2 font-semibold transition-colors">Gönder</button>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.6/signalr.min.js"></script>
 <script>
+window.sendMessage = null; // Önce temizle
 document.addEventListener('DOMContentLoaded', function () {
     const currentUsername = '@(User.Identity?.Name ?? "")';
     const targetUsername = '@(ViewBag.TargetUsername ?? "")';
@@ -133,17 +90,18 @@ document.addEventListener('DOMContentLoaded', function () {
     fileInput.addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) {
-            console.log('No file selected');
             selectedFile = null;
+            messageInput.value = '';
+            if (selectedFileInfo) selectedFileInfo.classList.add('hidden');
             return;
         }
-        console.log('File selected:', file.name);
         selectedFile = file;
-        selectedFileName.textContent = file.name;
         messageInput.value = '';
-        selectedFileInfo.style.display = 'block';
-        selectedFileInfo.classList.remove('hidden');
-        console.log('selectedFile:', selectedFile, 'fileInput.value:', fileInput.value);
+        if (selectedFileInfo) {
+            selectedFileName.textContent = file.name;
+            selectedFileInfo.style.display = 'block';
+            selectedFileInfo.classList.remove('hidden');
+        }
     });
 
     // SignalR bağlantısını başlat
@@ -164,75 +122,57 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Dosya yükleme ve gönderme işlemi
-    async function uploadAndSendFile(file) {
-        if (!file) return;
-        console.log("Starting file upload process...");
-        uploadProgress.classList.remove('hidden');
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-            console.log("Uploading file to server...");
-            const response = await fetch('/Chat/UploadChatFile', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            console.log("File upload response:", result);
-            if (result.success) {
-                if (connection.state === "Connected") {
-                    console.log('Calling SendFile with:', currentUsername, targetUsername, result.fileName, result.fileUrl);
-                    await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
-                    console.log("File sent successfully");
-                    setTimeout(() => {
-                        cancelFileUpload();
-                    }, 1000);
-                    selectedFile = null;
-                    fileInput.value = '';
-                    messageInput.value = '';
-                    console.log('File sent, selectedFile and fileInput.value resetlendi:', selectedFile, fileInput.value);
-                } else {
-                    console.error("SignalR not connected, current state:", connection.state);
-                    alert("Bağlantı hatası. Lütfen sayfayı yenileyin.");
-                    cancelFileUpload();
-                }
-            } else {
-                console.error("File upload failed:", result.message);
-                alert(result.message || "Dosya yüklenemedi.");
-                cancelFileUpload();
-            }
-        } catch (error) {
-            console.error("Dosya yükleme hatası:", error);
-            alert("Dosya yüklenirken bir hata oluştu.");
-            cancelFileUpload();
-        }
-    }
-
     // Mesaj gönderme fonksiyonu
     window.sendMessage = async function() {
-        // Dosya seçiliyse sadece dosya gönder
-        console.log('sendMessage called, selectedFile:', selectedFile, 'fileInput.value:', fileInput.value);
-        if (selectedFile && fileInput.value) {
-            console.log('File gönderiliyor, SendFile fonksiyonu çağrılacak.');
+        console.log('sendMessage called, selectedFile:', selectedFile);
+        if (selectedFile) {
             await uploadAndSendFile(selectedFile);
             return;
         }
-        // Sadece metin mesajı gönder
-        console.log('Text mesaj gönderiliyor, SendMessage fonksiyonu çağrılacak.');
         const message = messageInput.value.trim();
         if (!message) return;
         try {
             if (connection.state !== "Connected") {
                 await startConnection();
             }
-            console.log('Calling SendMessage with:', currentUsername, targetUsername, message, chatType);
             await connection.invoke("SendMessage", currentUsername, targetUsername, message, chatType);
             messageInput.value = '';
         } catch (err) {
-            console.error("Error sending message:", err);
             alert("Mesaj gönderilemedi: " + err.message);
         }
     };
+
+    // Dosya yükleme ve gönderme işlemi
+    async function uploadAndSendFile(file) {
+        console.log('uploadAndSendFile called with:', file);
+        if (!file) return;
+        uploadProgress && uploadProgress.classList.remove('hidden');
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            if (connection.state !== "Connected") {
+                await connection.start();
+            }
+            const response = await fetch('/Chat/UploadChatFile', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            if (result.success) {
+                await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
+                setTimeout(() => { cancelFileUpload(); }, 1000);
+                selectedFile = null;
+                fileInput.value = '';
+                messageInput.value = '';
+            } else {
+                alert(result.message || "Dosya yüklenemedi.");
+                cancelFileUpload();
+            }
+        } catch (error) {
+            alert("Dosya yüklenirken bir hata oluştu.");
+            cancelFileUpload();
+        }
+    }
 
     // Enter tuşu ile mesaj gönderme
     messageInput.addEventListener('keypress', function(event) {
@@ -280,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="flex items-center gap-2">
                     <i class="fas fa-file text-lg"></i>
                     <a href="${fileUrl}" target="_blank" class="underline hover:no-underline" onclick="trackChatFileDownload('${fileUrl}')">
-                        ${content}
+                        ${content.replace(/^\[Dosya\]\s*/, '')}
                     </a>
                 </div>`;
         } else {
@@ -305,6 +245,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Scroll to bottom after loading chat history
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+    document.getElementById('sendMessageButton').addEventListener('click', sendMessage);
 });
 
 // Chat dosyası indirme takibi

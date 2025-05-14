@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
@@ -12,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace NoteSharingApp.Controllers
 {
+    [Authorize]
     public class ChatController : Controller
     {
         private readonly DatabaseContext _database;
@@ -174,8 +176,8 @@ namespace NoteSharingApp.Controllers
             {
                 var currentUsername = User.Identity.Name;
 
-                // Hedef kullanıcının varlığını kontrol et
-                var targetUser = await _database.Users.Find(u => u.UserName == targetUsername).FirstOrDefaultAsync();
+                // Hedef kullanıcının varlığını kontrol et (case-insensitive)
+                var targetUser = await _database.Users.Find(u => u.UserName.ToLower() == targetUsername.ToLower()).FirstOrDefaultAsync();
                 if (targetUser == null)
                 {
                     return Json(new { success = false, message = "Kullanıcı bulunamadı." });
@@ -575,6 +577,145 @@ namespace NoteSharingApp.Controllers
             }
 
             return Json(new { success = true });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SendGroupMessage([FromBody] GroupMessageRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(request.GroupId) || string.IsNullOrWhiteSpace(request.Content) || string.IsNullOrWhiteSpace(request.SenderUsername))
+                {
+                    return Json(new { success = false, message = "Eksik parametre." });
+                }
+                // Önce normal grupta ara
+                var group = await _database.Groups.Find(g => g.Id == request.GroupId).FirstOrDefaultAsync();
+                if (group != null)
+                {
+                    var newMessage = new GroupMessage
+                    {
+                        SenderUsername = request.SenderUsername,
+                        Content = request.Content,
+                        SentAt = DateTime.UtcNow,
+                        FileUrl = request.FileUrl,
+                        FileName = null // Eğer dosya adı varsa ekle
+                    };
+                    if (group.Messages == null) group.Messages = new List<GroupMessage>();
+                    group.Messages.Add(newMessage);
+                    await _database.Groups.ReplaceOneAsync(g => g.Id == request.GroupId, group);
+                    return Json(new { success = true, message = "Mesaj gönderildi." });
+                }
+                // Okul grubu ise
+                if (ObjectId.TryParse(request.GroupId, out var groupObjectId))
+                {
+                    var schoolGroup = await _database.SchoolGroups.Find(g => g.Id == groupObjectId).FirstOrDefaultAsync();
+                    if (schoolGroup != null)
+                    {
+                        var newMessage = new Message
+                        {
+                            SenderUsername = request.SenderUsername,
+                            Content = request.Content,
+                            CreatedAt = DateTime.UtcNow,
+                            FileUrl = request.FileUrl
+                        };
+                        if (schoolGroup.Messages == null) schoolGroup.Messages = new List<Message>();
+                        schoolGroup.Messages.Add(newMessage);
+                        await _database.SchoolGroups.ReplaceOneAsync(g => g.Id == groupObjectId, schoolGroup);
+                        return Json(new { success = true, message = "Mesaj gönderildi." });
+                    }
+                }
+                return Json(new { success = false, message = "Grup bulunamadı." });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        public class GroupMessageRequest
+        {
+            public string GroupId { get; set; }
+            public string SenderUsername { get; set; }
+            public string Content { get; set; }
+            public string FileUrl { get; set; }
+        }
+
+        [HttpGet]
+        public IActionResult Index()
+        {
+            return View();
+        }
+
+        public class GroupCreationModel
+        {
+            public string GroupName { get; set; }
+            public List<string> Users { get; set; }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateGroup([FromBody] GroupCreationModel model)
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return Json(new { success = false, message = "Grup oluşturmak için giriş yapmalısınız." });
+            }
+
+            var currentUsername = User.Identity.Name;
+            var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(model.GroupName))
+            {
+                return Json(new { success = false, message = "Grup adı boş olamaz." });
+            }
+
+            if (model.Users == null || model.Users.Count == 0)
+            {
+                return Json(new { success = false, message = "En az bir kullanıcı seçmelisiniz." });
+            }
+
+            try
+            {
+                // Kullanıcı ID'lerini al
+                var userIds = new List<string>();
+                foreach (var username in model.Users)
+                {
+                    var user = await _database.Users.Find(u => u.UserName == username).FirstOrDefaultAsync();
+                    if (user != null)
+                    {
+                        userIds.Add(user.UserId.ToString());
+                    }
+                }
+
+                // Mevcut kullanıcıyı da ekle
+                if (!string.IsNullOrEmpty(currentUserId))
+                {
+                    userIds.Add(currentUserId);
+                }
+
+                // Yeni grup oluştur
+                var group = new Group
+                {
+                    GroupName = model.GroupName,
+                    UserIds = userIds,
+                    CreatedBy = currentUsername,
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    Messages = new List<GroupMessage>()
+                };
+
+                await _database.Groups.InsertOneAsync(group);
+
+                return Json(new { 
+                    success = true, 
+                    message = "Grup başarıyla oluşturuldu.",
+                    groupId = group.Id.ToString(),
+                    groupName = group.GroupName
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = "Grup oluşturulurken bir hata oluştu." });
+            }
         }
     }
 }
