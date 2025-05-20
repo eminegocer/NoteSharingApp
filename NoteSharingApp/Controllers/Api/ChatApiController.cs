@@ -484,23 +484,38 @@ namespace NoteSharingApp.Controllers.API
         [HttpGet("group-messages")]
         public async Task<IActionResult> GetGroupMessages([FromQuery] string groupId)
         {
-            try
+            if (string.IsNullOrEmpty(groupId) || !ObjectId.TryParse(groupId, out var groupObjectId))
             {
-                if (string.IsNullOrEmpty(groupId) || !ObjectId.TryParse(groupId, out var groupObjectId))
-                {
-                    return BadRequest(new { success = false, message = "Geçersiz grup kimliği." });
-                }
+                return BadRequest(new { success = false, message = "Geçersiz grup kimliği." });
+            }
 
-                var group = await _database.SchoolGroups
-                    .Find(g => g.Id == groupObjectId)
-                    .FirstOrDefaultAsync();
+            // Önce Groups koleksiyonunda ara
+            var group = await _database.Groups
+                .Find(g => g.Id == groupObjectId.ToString())
+                .FirstOrDefaultAsync();
 
-                if (group == null)
-                {
-                    return NotFound(new { success = false, message = "Grup bulunamadı." });
-                }
-
+            if (group != null)
+            {
                 var messages = group.Messages
+                    .OrderBy(m => m.SentAt)
+                    .Select(m => new
+                    {
+                        senderUsername = m.SenderUsername,
+                        content = m.Content,
+                        createdAt = m.SentAt,
+                        fileUrl = m.FileUrl,
+                    });
+                return Ok(messages);
+            }
+
+            // Sonra SchoolGroups koleksiyonunda ara
+            var schoolGroup = await _database.SchoolGroups
+                .Find(g => g.Id == groupObjectId)
+                .FirstOrDefaultAsync();
+
+            if (schoolGroup != null)
+            {
+                var messages = schoolGroup.Messages
                     .OrderBy(m => m.CreatedAt)
                     .Select(m => new
                     {
@@ -509,14 +524,35 @@ namespace NoteSharingApp.Controllers.API
                         createdAt = m.CreatedAt,
                         fileUrl = m.FileUrl,
                     });
-
                 return Ok(messages);
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = ex.Message });
-            }
+
+            return NotFound(new { success = false, message = "Grup bulunamadı." });
         }
+
+        [HttpGet("user-groups")]
+        public async Task<IActionResult> GetUserGroups()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId) || !ObjectId.TryParse(userId, out var userObjectId))
+                return Ok(new List<object>());
+
+            var filter = Builders<Group>.Filter.AnyEq(g => g.UserIds, userObjectId.ToString());
+
+            var userGroups = await _database.Groups.Find(filter).ToListAsync();
+
+            var result = userGroups.Select(g => new
+            {
+                id = g.Id.ToString(),
+                groupName = g.GroupName,
+                memberCount = g.UserIds.Count,
+                type = "group", // Bunu ayırt etmek için ekle
+                                // diğer alanlar...
+            });
+
+            return Ok(result);
+        }
+
         [HttpGet("/api/user/current")]
         public IActionResult GetCurrentUser()
         {

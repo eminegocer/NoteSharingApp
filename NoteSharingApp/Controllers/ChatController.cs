@@ -281,32 +281,46 @@ namespace NoteSharingApp.Controllers
                 .Limit(5)
                 .ToListAsync();
 
+            // Katılımcı kullanıcı adlarını çek
+            var allUserIds = schoolGroups.SelectMany(g => g.ParticipantIds ?? new List<MongoDB.Bson.ObjectId>()).Distinct().ToList();
+            var users = await _database.Users.Find(u => allUserIds.Contains(u.UserId)).ToListAsync();
+
             var result = schoolGroups.Select(g => new
             {
                 id = g.Id.ToString(),
                 groupName = g.GroupName,
                 schoolName = g.SchoolName,
-                departmentName = g.DepartmentName
+                departmentName = g.DepartmentName,
+                description = g.Description,
+                createdAt = g.CreatedAt,
+                participantIds = g.ParticipantIds?.Select(x => x.ToString()).ToList(),
+                participants = users.Where(u => (g.ParticipantIds ?? new List<MongoDB.Bson.ObjectId>()).Contains(u.UserId)).Select(u => u.UserName).ToList()
             });
 
             return Json(result);
         }
 
+        public class GroupJoinRequest
+        {
+            public string GroupId { get; set; }
+        }
+
         [HttpPost]
-        public async Task<IActionResult> JoinSchoolGroup(string groupId)
+        public async Task<IActionResult> JoinSchoolGroup([FromBody] GroupJoinRequest model)
         {
             try
             {
+                var groupId = model.GroupId;
                 // Kullanıcı kimliğini al
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 var username = User.Identity.Name;
 
-                if (string.IsNullOrEmpty(userId) || !ObjectId.TryParse(userId, out var userObjectId))
+                if (string.IsNullOrEmpty(userId) || !MongoDB.Bson.ObjectId.TryParse(userId, out var userObjectId))
                 {
                     return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
                 }
 
-                if (string.IsNullOrEmpty(groupId) || !ObjectId.TryParse(groupId, out var groupObjectId))
+                if (string.IsNullOrEmpty(groupId) || !MongoDB.Bson.ObjectId.TryParse(groupId, out var groupObjectId))
                 {
                     return Json(new { success = false, message = "Geçersiz grup kimliği." });
                 }
