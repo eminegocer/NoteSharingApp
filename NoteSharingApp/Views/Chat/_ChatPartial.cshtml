@@ -55,223 +55,233 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.6/signalr.min.js"></script>
 <script>
-window.sendMessage = null; // Önce temizle
-document.addEventListener('DOMContentLoaded', function () {
-    const currentUsername = '@(User.Identity?.Name ?? "")';
-    const targetUsername = '@(ViewBag.TargetUsername ?? "")';
-    const chatType = '@(ViewBag.ChatType ?? "personal")';
+function initPersonalChatScripts() {
+    window.sendMessage = null; // Önce temizle
+    document.addEventListener('DOMContentLoaded', function () {
+        const currentUsername = '@(User.Identity?.Name ?? "")';
+        const targetUsername = '@(ViewBag.TargetUsername ?? "")';
+        const chatType = '@(ViewBag.ChatType ?? "personal")';
 
-    const messageInput = document.getElementById("messageInput");
-    const messagesDiv = document.getElementById("messages");
-    const fileInput = document.getElementById("fileInput");
-    const selectedFileInfo = document.getElementById("selectedFileInfo");
-    const selectedFileName = document.getElementById("selectedFileName");
-    const uploadProgress = document.getElementById("uploadProgress");
-    let selectedFile = null;
+        const messageInput = document.getElementById("messageInput");
+        const messagesDiv = document.getElementById("messages");
+        const fileInput = document.getElementById("fileInput");
+        const selectedFileInfo = document.getElementById("selectedFileInfo");
+        const selectedFileName = document.getElementById("selectedFileName");
+        const uploadProgress = document.getElementById("uploadProgress");
+        let selectedFile = null;
 
-    // SignalR bağlantısını oluştur
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl("/chatHub")
-        .withAutomaticReconnect()
-        .configureLogging(signalR.LogLevel.Debug)
-        .build();
+        // SignalR bağlantısını oluştur
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/chatHub")
+            .withAutomaticReconnect()
+            .configureLogging(signalR.LogLevel.Debug)
+            .build();
 
-    // Dosya seçimi iptal
-    window.cancelFileUpload = function() {
-        fileInput.value = '';
-        selectedFile = null;
-        selectedFileInfo.classList.add('hidden');
-        uploadProgress.classList.add('hidden');
-        messageInput.value = '';
-        console.log('File upload cancelled');
-    };
-
-    // Dosya seçme işlemi
-    fileInput.addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (!file) {
+        // Dosya seçimi iptal
+        window.cancelFileUpload = function() {
+            fileInput.value = '';
             selectedFile = null;
+            selectedFileInfo.classList.add('hidden');
+            uploadProgress.classList.add('hidden');
             messageInput.value = '';
-            if (selectedFileInfo) selectedFileInfo.classList.add('hidden');
-            return;
-        }
-        selectedFile = file;
-        messageInput.value = '';
-        if (selectedFileInfo) {
-            selectedFileName.textContent = file.name;
-            selectedFileInfo.style.display = 'block';
-            selectedFileInfo.classList.remove('hidden');
-        }
-    });
+            console.log('File upload cancelled');
+        };
 
-    // SignalR bağlantısını başlat
-    async function startConnection() {
-        try {
-            if (connection.state === "Disconnected") {
-                console.log("Starting SignalR connection...");
-                await connection.start();
-                console.log("SignalR Connected successfully");
-                await connection.invoke("JoinChat", currentUsername);
-                console.log("Joined chat as:", currentUsername);
-            } else {
-                console.log("SignalR already connected, state:", connection.state);
-            }
-        } catch (err) {
-            console.error("SignalR Connection Error:", err);
-            setTimeout(startConnection, 5000);
-        }
-    }
-
-    // Mesaj gönderme fonksiyonu
-    window.sendMessage = async function() {
-        console.log('sendMessage called, selectedFile:', selectedFile);
-        if (selectedFile) {
-            await uploadAndSendFile(selectedFile);
-            return;
-        }
-        const message = messageInput.value.trim();
-        if (!message) return;
-        try {
-            if (connection.state !== "Connected") {
-                await startConnection();
-            }
-            await connection.invoke("SendMessage", currentUsername, targetUsername, message, chatType);
-            messageInput.value = '';
-        } catch (err) {
-            alert("Mesaj gönderilemedi: " + err.message);
-        }
-    };
-
-    // Dosya yükleme ve gönderme işlemi
-    async function uploadAndSendFile(file) {
-        console.log('uploadAndSendFile called with:', file);
-        if (!file) return;
-        uploadProgress && uploadProgress.classList.remove('hidden');
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-            if (connection.state !== "Connected") {
-                await connection.start();
-            }
-            const response = await fetch('/Chat/UploadChatFile', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            if (result.success) {
-                await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
-                setTimeout(() => { cancelFileUpload(); }, 1000);
+        // Dosya seçme işlemi
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) {
                 selectedFile = null;
-                fileInput.value = '';
                 messageInput.value = '';
-            } else {
-                alert(result.message || "Dosya yüklenemedi.");
+                if (selectedFileInfo) selectedFileInfo.classList.add('hidden');
+                return;
+            }
+            selectedFile = file;
+            messageInput.value = '';
+            if (selectedFileInfo) {
+                selectedFileName.textContent = file.name;
+                selectedFileInfo.style.display = 'block';
+                selectedFileInfo.classList.remove('hidden');
+            }
+        });
+
+        // SignalR bağlantısını başlat
+        async function startConnection() {
+            try {
+                if (connection.state === "Disconnected") {
+                    console.log("Starting SignalR connection...");
+                    await connection.start();
+                    console.log("SignalR Connected successfully");
+                    await connection.invoke("JoinChat", currentUsername);
+                    console.log("Joined chat as:", currentUsername);
+                } else {
+                    console.log("SignalR already connected, state:", connection.state);
+                }
+            } catch (err) {
+                console.error("SignalR Connection Error:", err);
+                setTimeout(startConnection, 5000);
+            }
+        }
+
+        // Mesaj gönderme fonksiyonu
+        window.sendMessage = async function() {
+            console.log('sendMessage called, selectedFile:', selectedFile);
+            if (selectedFile) {
+                await uploadAndSendFile(selectedFile);
+                return;
+            }
+            const message = messageInput.value.trim();
+            if (!message) return;
+            try {
+                if (connection.state !== "Connected") {
+                    await startConnection();
+                }
+                await connection.invoke("SendMessage", currentUsername, targetUsername, message, chatType);
+                messageInput.value = '';
+            } catch (err) {
+                alert("Mesaj gönderilemedi: " + err.message);
+            }
+        };
+
+        // Dosya yükleme ve gönderme işlemi
+        async function uploadAndSendFile(file) {
+            console.log('uploadAndSendFile called with:', file);
+            if (!file) return;
+            uploadProgress && uploadProgress.classList.remove('hidden');
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                if (connection.state !== "Connected") {
+                    await connection.start();
+                }
+                const response = await fetch('/Chat/UploadChatFile', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    await connection.invoke("SendFile", currentUsername, targetUsername, result.fileName, result.fileUrl);
+                    setTimeout(() => { cancelFileUpload(); }, 1000);
+                    selectedFile = null;
+                    fileInput.value = '';
+                    messageInput.value = '';
+                } else {
+                    alert(result.message || "Dosya yüklenemedi.");
+                    cancelFileUpload();
+                }
+            } catch (error) {
+                alert("Dosya yüklenirken bir hata oluştu.");
                 cancelFileUpload();
             }
-        } catch (error) {
-            alert("Dosya yüklenirken bir hata oluştu.");
-            cancelFileUpload();
-        }
-    }
-
-    // Enter tuşu ile mesaj gönderme
-    messageInput.addEventListener('keypress', function(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            sendMessage();
-        }
-    });
-
-    // Mesaj alma olayını dinle
-    connection.on("ReceiveMessage", (senderUsername, message) => {
-        console.log('Received message:', { senderUsername, message });
-        appendMessage(senderUsername, message, false);
-    });
-
-    // Dosya mesajı alma olayını dinle
-    connection.on("ReceiveFile", (senderUsername, fileName, fileUrl) => {
-        console.log('Received file:', { senderUsername, fileName, fileUrl });
-        appendMessage(senderUsername, fileName, true, fileUrl);
-    });
-
-    // Bağlantı durumu değişikliklerini dinle
-    connection.onreconnecting((error) => {
-        console.log('Reconnecting to SignalR...', error);
-    });
-
-    connection.onreconnected((connectionId) => {
-        console.log('Reconnected to SignalR with connection ID:', connectionId);
-    });
-
-    connection.onclose((error) => {
-        console.log('SignalR connection closed:', error);
-    });
-
-    // Mesaj ekleme fonksiyonu
-    function appendMessage(senderUsername, content, isFile, fileUrl = null) {
-        const messageDiv = document.createElement("div");
-        const isCurrentUser = senderUsername === currentUsername;
-        
-        messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
-        
-        let messageContent = '';
-        if (isFile) {
-            messageContent = `
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-file text-lg"></i>
-                    <a href="${fileUrl}" target="_blank" class="underline hover:no-underline" onclick="trackChatFileDownload('${fileUrl}')">
-                        ${content.replace(/^\[Dosya\]\s*/, '')}
-                    </a>
-                </div>`;
-        } else {
-            messageContent = `<p class="break-words">${content}</p>`;
         }
 
-        messageDiv.innerHTML = `
-            <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
-                ${messageContent}
-                <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
-                    ${new Date().toLocaleTimeString()}
-                </span>
-            </div>
-        `;
-        
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    // Sayfa yüklendiğinde bağlantıyı başlat
-    startConnection();
-
-    // Scroll to bottom after loading chat history
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-    document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
-    document.getElementById('sendMessageButton').addEventListener('click', sendMessage);
-});
-
-// Chat dosyası indirme takibi
-function trackChatFileDownload(fileUrl) {
-    // Extract note ID from file URL if it's a note file or chat file
-    const noteIdMatch = fileUrl.match(/\/(uploads|chat-files)\/([^\/]+)/);
-    if (noteIdMatch) {
-        const noteId = noteIdMatch[2]; // Use the second capture group which contains the file name
-        fetch('/NoteDownload/TrackDownload', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `noteId=${noteId}&source=chat`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.success) {
-                console.error('Download tracking failed:', data.message);
+        // Enter tuşu ile mesaj gönderme
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
             }
-        })
-        .catch(error => {
-            console.error('Error tracking download:', error);
         });
+
+        // Mesaj alma olayını dinle
+        connection.on("ReceiveMessage", (senderUsername, message) => {
+            console.log('Received message:', { senderUsername, message });
+            appendMessage(senderUsername, message, false);
+        });
+
+        // Dosya mesajı alma olayını dinle
+        connection.on("ReceiveFile", (senderUsername, fileName, fileUrl) => {
+            console.log('Received file:', { senderUsername, fileName, fileUrl });
+            appendMessage(senderUsername, fileName, true, fileUrl);
+        });
+
+        // Bağlantı durumu değişikliklerini dinle
+        connection.onreconnecting((error) => {
+            console.log('Reconnecting to SignalR...', error);
+        });
+
+        connection.onreconnected((connectionId) => {
+            console.log('Reconnected to SignalR with connection ID:', connectionId);
+        });
+
+        connection.onclose((error) => {
+            console.log('SignalR connection closed:', error);
+        });
+
+        // Mesaj ekleme fonksiyonu
+        function appendMessage(senderUsername, content, isFile, fileUrl = null) {
+            const messageDiv = document.createElement("div");
+            const isCurrentUser = senderUsername === currentUsername;
+            
+            messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
+            
+            let messageContent = '';
+            if (isFile) {
+                messageContent = `
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-file text-lg"></i>
+                        <a href="${fileUrl}" target="_blank" class="underline hover:no-underline" onclick="trackChatFileDownload('${fileUrl}')">
+                            ${content.replace(/^\[Dosya\]\s*/, '')}
+                        </a>
+                    </div>`;
+            } else {
+                messageContent = `<p class="break-words">${content}</p>`;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="${isCurrentUser ? 'bg-purple-500 text-white' : 'bg-white text-gray-800'} rounded-lg p-3 max-w-[70%] shadow-sm">
+                    ${messageContent}
+                    <span class="text-xs ${isCurrentUser ? 'text-purple-100' : 'text-gray-500'} block mt-1">
+                        ${new Date().toLocaleTimeString()}
+                    </span>
+                </div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Sayfa yüklendiğinde bağlantıyı başlat
+        startConnection();
+
+        // Scroll to bottom after loading chat history
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        // Kişisel sohbet mesaj gönderme butonunu aktif et (her panel yüklemesinde çalışır)
+        setTimeout(function() {
+            var sendBtn = document.getElementById('sendMessageBtn');
+            if (sendBtn) {
+                sendBtn.onclick = function() {
+                    if (window.sendMessage) window.sendMessage();
+                };
+            }
+        }, 0);
+    }
+
+    // Chat dosyası indirme takibi
+    function trackChatFileDownload(fileUrl) {
+        // Extract note ID from file URL if it's a note file or chat file
+        const noteIdMatch = fileUrl.match(/\/(uploads|chat-files)\/([^\/]+)/);
+        if (noteIdMatch) {
+            const noteId = noteIdMatch[2]; // Use the second capture group which contains the file name
+            fetch('/NoteDownload/TrackDownload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `noteId=${noteId}&source=chat`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error('Download tracking failed:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error tracking download:', error);
+            });
+        }
     }
 }
+window.initPersonalChatScripts = initPersonalChatScripts;
 </script>
