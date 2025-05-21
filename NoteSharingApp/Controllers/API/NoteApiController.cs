@@ -142,11 +142,12 @@ namespace NoteSharingApp.Controllers
 
         // Not arama işlemi
         [HttpGet("search")]
+        [AllowAnonymous] // Bu metot artık yetkilendirme gerektirmez
         public async Task<IActionResult> SearchNotes([FromQuery] string term)
         {
             // Arama terimi boş mu kontrolü
             if (string.IsNullOrWhiteSpace(term))
-                return BadRequest("Arama terimi boş olamaz.");
+                return Ok(new List<Note>()); // Boş terimde boş liste dön
 
             // Kullanıcıları arama: SchoolName veya UserName alanlarında arar
             var userFilter = Builders<User>.Filter.Or(

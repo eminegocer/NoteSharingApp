@@ -8,9 +8,27 @@
             <div class="flex flex-col items-center justify-center mb-6 w-full">
                 <h1 class="text-2xl font-bold text-purple-500 text-center w-full">Son Eklenen Notlar</h1>
                 <p class="text-sm text-gray-600/70 mt-1 text-center w-full">Paylaşılan en güncel notlar</p>
+                <div class="flex justify-end w-full mt-2">
+                    <a href="/Notes/AddNote" class="btn btn-pastel-mor px-6 py-2 rounded-full shadow hover:shadow-lg transition-all duration-200">
+                        <i class="fas fa-plus mr-2"></i> Not Ekle
+                    </a>
+                </div>
             </div>
 
-            <div class="space-y-8">
+            <div class="flex justify-center items-center mb-6 w-full">
+                <input id="search-term" class="p-2 rounded-l-full border border-gray-300 w-1/2 max-w-md" type="text" placeholder="Not ara..." oninput="searchNotes()">
+                <button class="btn bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-r-full shadow hover:shadow-lg transition-all duration-200" onclick="searchNotes()">
+                    <i class="fas fa-search mr-2"></i> Ara
+                </button>
+            </div>
+
+            <!-- Filtrelenmiş Notlar -->
+            <div id="filtered-notes" class="w-full max-w-4xl mx-auto space-y-4 mb-8" style="display: none; max-height: 600px; overflow-y: auto;">
+                <!-- Arama sonuçları burada listelenecek -->
+            </div>
+
+            <!-- Ana Notlar -->
+            <div id="main-notes" class="space-y-8">
                 @if (Model == null || !Model.Any())
                 {
                     <div class="flex flex-col items-center justify-center p-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
@@ -23,32 +41,42 @@
                 {
                     @foreach (var note in Model)
                     {
-                        <div class="bg-green-50 hover:bg-white rounded-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg cursor-pointer max-w-2xl mx-auto flex flex-col gap-4 shadow group" onclick="window.location='@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = "/Notes/HomePage" })'">
-                            <h3 class="text-2xl font-semibold text-gray-800 group-hover:text-gray-900 mb-2">@note.Title</h3>
-                            <div class="flex flex-wrap items-center gap-3 mb-2">
-                                <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                    <i class="fas fa-book-open mr-1"></i> Sayfa: @note.Page
-                                </span>
-                                <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                    <i class="fas fa-user mr-1"></i> @note.OwnerUsername
-                                </span>
-                                <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                    <i class="fas fa-folder mr-1"></i> @note.Category
-                                </span>
-                                <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                    <i class="fas fa-clock mr-1"></i> @note.CreatedAt.ToString("dd.MM.yyyy HH:mm")
-                                </span>
-                            </div>
-                            <p class="text-gray-700 mb-3">@note.Content</p>
-                            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                <button class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
-                                    <i class="fas fa-share-alt"></i>
-                                    <span>Paylaş</span>
+                        <div class="relative">
+                            <div class="absolute top-2 right-2 z-10">
+                                <button class="text-purple-500 hover:text-purple-700 bg-white rounded-full p-2 shadow"
+                                        onclick="event.stopPropagation(); getPdfSummary('@(System.IO.Path.GetFileName(note.PdfFilePath))')"
+                                        title="Yapay Zeka ile Özetle">
+                                    <i class="fas fa-robot"></i>
                                 </button>
-                                <a href="@note.PdfFilePath" target="_blank" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
-                                    <i class="fas fa-file-pdf"></i>
-                                    <span>PDF İndir</span>
-                                </a>
+                            </div>
+                            <div class="bg-green-50 hover:bg-white rounded-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg cursor-pointer max-w-2xl mx-auto flex flex-col gap-4 shadow group"
+                                 onclick="location.href='@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = "/Notes/HomePage" })'">
+                                <h3 class="text-2xl font-semibold text-gray-800 group-hover:text-gray-900 mb-2">@note.Title</h3>
+                                <div class="flex flex-wrap items-center gap-3 mb-2">
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-book-open mr-1"></i> Sayfa: @note.Page
+                                    </span>
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-user mr-1"></i> @note.OwnerUsername
+                                    </span>
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-folder mr-1"></i> @note.Category
+                                    </span>
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-clock mr-1"></i> @note.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                    </span>
+                                </div>
+                                <p class="text-gray-700 mb-3">@note.Content</p>
+                                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                                    <button class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
+                                        <i class="fas fa-share-alt"></i>
+                                        <span>Paylaş</span>
+                                    </button>
+                                    <a href="@note.PdfFilePath" target="_blank" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
+                                        <i class="fas fa-file-pdf"></i>
+                                        <span>PDF İndir</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     }
@@ -57,20 +85,127 @@
         </div>
     </main>
 
-    <!-- Sağ Panel: Boş Panel (30%) -->
-    <aside class="w-[30%] bg-white shadow-lg p-4 m-2 rounded-lg">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-purple-400">Panel</h2>
-            <i class="fas fa-info-circle text-purple-400"></i>
-        </div>
-        <div class="bg-gray-50 p-4 rounded-lg h-full">
-            <div class="text-center text-gray-500">
-                <i class="fas fa-info-circle text-3xl mb-3"></i>
-                <p>Bu panel daha sonra kullanılacak</p>
+    <!-- Sağ Panel: Bölünmüş -->
+    <aside class="w-[30%] bg-white shadow-lg p-4 m-2 rounded-lg flex flex-col gap-6">
+        <!-- Yapay Zeka Özeti Bölümü -->
+        <div class="bg-gray-50 p-4 rounded-lg mb-4">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-xl font-bold text-purple-400">Yapay Zeka Özeti</h2>
+                <i class="fas fa-robot text-purple-400"></i>
+            </div>
+            <div id="ai-summary-panel">
+                <div class="text-center text-gray-500" id="ai-summary-placeholder">
+                    <i class="fas fa-info-circle text-3xl mb-3"></i>
+                    <p>Bir not seçildiğinde özet burada görünecek.</p>
+                </div>
+                <div id="ai-summary-content" style="display:none;">
+                    <p id="ai-summary-text" class="text-gray-700"></p>
+                </div>
+                <div id="ai-summary-loading" style="display:none;">
+                    <i class="fas fa-spinner fa-spin text-purple-400 text-2xl"></i>
+                    <p>Özetleniyor...</p>
+                </div>
             </div>
         </div>
     </aside>
 </div>
+
+<script>
+function getPdfSummary(fileName) {
+    if (!fileName) return;
+    document.getElementById('ai-summary-placeholder').style.display = 'none';
+    document.getElementById('ai-summary-content').style.display = 'none';
+    document.getElementById('ai-summary-loading').style.display = 'block';
+
+    fetch('/api/PDFSummary/' + encodeURIComponent(fileName))
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('ai-summary-loading').style.display = 'none';
+            document.getElementById('ai-summary-content').style.display = 'block';
+            document.getElementById('ai-summary-text').innerText = data.summary;
+        })
+        .catch(err => {
+            document.getElementById('ai-summary-loading').style.display = 'none';
+            document.getElementById('ai-summary-content').style.display = 'block';
+            document.getElementById('ai-summary-text').innerText = 'Özet alınamadı.';
+        });
+}
+
+let searchTimeout;
+function searchNotes() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        const term = document.getElementById('search-term').value;
+        const resultsDiv = document.getElementById('filtered-notes');
+        const mainNotesDiv = document.getElementById('main-notes');
+        
+        if (!term.trim()) {
+            resultsDiv.style.display = 'none';
+            mainNotesDiv.style.display = 'block';
+            return;
+        }
+
+        resultsDiv.style.display = 'block';
+        mainNotesDiv.style.display = 'none';
+        resultsDiv.innerHTML = '<div class="text-gray-400 text-center py-4">Aranıyor...</div>';
+
+        fetch(`/api/notes/search?term=${encodeURIComponent(term)}`)
+        .then(res => {
+            if (!res.ok) throw new Error('API error');
+            return res.json();
+        })
+        .then(notes => {
+            if (!notes || notes.length === 0) {
+                resultsDiv.innerHTML = '<div class="text-gray-400 text-center py-4">Sonuç bulunamadı.</div>';
+                return;
+            }
+            resultsDiv.innerHTML = notes.map(note => `
+                <div class="relative">
+                    <div class="absolute top-2 right-2 z-10">
+                        <button class="text-purple-500 hover:text-purple-700 bg-white rounded-full p-2 shadow"
+                                onclick="event.stopPropagation(); getPdfSummary('${note.pdfFilePath ? note.pdfFilePath.split('/').pop() : ''}')"
+                                title="Yapay Zeka ile Özetle">
+                            <i class="fas fa-robot"></i>
+                        </button>
+                    </div>
+                    <div class="bg-green-50 hover:bg-white rounded-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg cursor-pointer max-w-2xl mx-auto flex flex-col gap-4 shadow group"
+                             onclick="window.location.href = '/Notes/NoteDetail?id=${note.noteId || note.NoteId}&returnUrl=/Notes/HomePage'"
+                        <h3 class="text-lg font-semibold text-gray-800 group-hover:text-gray-900 mb-2">${note.title || 'Başlıksız'}</h3>
+                        <div class="flex flex-wrap items-center gap-3 mb-2">
+                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                <i class="fas fa-book-open mr-1"></i> Sayfa: ${note.page || '-'}
+                            </span>
+                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                <i class="fas fa-user mr-1"></i> ${note.ownerUsername || 'Bilinmiyor'}
+                            </span>
+                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                <i class="fas fa-folder mr-1"></i> ${note.category || 'Bilinmiyor'}
+                            </span>
+                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                <i class="fas fa-clock mr-1"></i> ${note.createdAt ? new Date(note.createdAt).toLocaleString() : '-'}
+                            </span>
+                        </div>
+                        <p class="text-gray-700 mb-4">${note.content || ''}</p>
+                        <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <button class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
+                                <i class="fas fa-share-alt"></i>
+                                <span>Paylaş</span>
+                            </button>
+                            <a href="${note.pdfFilePath || '#'}" target="_blank" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
+                                <i class="fas fa-file-pdf"></i>
+                                <span>PDF İndir</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(() => {
+            resultsDiv.innerHTML = '<div class="text-red-400 text-center py-4">Arama sırasında hata oluştu.</div>';
+        });
+    }, 300);
+}
+</script>
 
 <style>
     .btn-pastel-mor {
@@ -83,4 +218,11 @@
         background-color: #b799d6 !important;
         color: #fff !important;
     }
+
+    /* Filtrelenmiş notlar için scrollbar stili */
+    #filtered-notes {
+        max-height: 300px; /* Örnek yükseklik, ihtiyaca göre ayarlanabilir */
+        overflow-y: auto;
+    }
+
 </style>
