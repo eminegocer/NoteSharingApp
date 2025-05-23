@@ -40,14 +40,22 @@ namespace NoteSharingApp.Controllers
                 Console.WriteLine("KULLANICI BULUNAMADI, 404");
                 return NotFound();
             }
-            // Get user's shared notes based on OwnerUsername
-            var sharedNotes = await _notes.Find(n => n.OwnerUsername == user.UserName)
+
+            // Get user's shared notes
+            var sharedNotesIds = user.SharedNotes;
+            var sharedNotes = await _notes.Find(n => sharedNotesIds.Contains(n.NoteId))
                 .SortByDescending(n => n.CreatedAt)
                 .ToListAsync();
 
-            // Update user's shared notes count
+            // Get user's received notes
+            var receivedNotesIds = user.ReceivedNotes;
+            var receivedNotes = await _notes.Find(n => receivedNotesIds.Contains(n.NoteId))
+                .SortByDescending(n => n.CreatedAt)
+                .ToListAsync();
+
+            // Update counts
             user.SharedNotesCount = sharedNotes.Count;
-            user.ReceivedNotesCount = 0; // Set to 0 since note sharing is not implemented yet
+            user.ReceivedNotesCount = receivedNotes.Count;
 
             // Update the user document in the database
             await _users.UpdateOneAsync(
@@ -60,7 +68,7 @@ namespace NoteSharingApp.Controllers
             {
                 User = user,
                 SharedNotes = sharedNotes,
-                ReceivedNotes = new List<Note>() // Empty list since note sharing is not implemented yet
+                ReceivedNotes = receivedNotes
             };
 
             return Ok(response);
@@ -118,13 +126,12 @@ namespace NoteSharingApp.Controllers
                 return NotFound();
             }
 
-            var sharedNotes = await _notes.Find(n => n.OwnerUsername == user.UserName)
+            var sharedNotes = await _notes.Find(n => user.SharedNotes.Contains(n.NoteId))
                 .SortByDescending(n => n.CreatedAt)
                 .ToListAsync();
 
             return Ok(sharedNotes);
         }
-
         [HttpGet("received-notes")]
         public async Task<IActionResult> GetReceivedNotes()
         {
@@ -140,8 +147,56 @@ namespace NoteSharingApp.Controllers
                 return NotFound();
             }
 
-            // For now, return empty list since note sharing is not implemented yet
-            return Ok(new List<Note>());
+            var receivedNotes = await _notes.Find(n => user.ReceivedNotes.Contains(n.NoteId))
+                .SortByDescending(n => n.CreatedAt)
+                .ToListAsync();
+
+            return Ok(receivedNotes);
+        }
+
+        [HttpPost("share-note/{noteId}")]
+        public async Task<IActionResult> ShareNote(string noteId)
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return Ok(new { success = false, message = "Bu işlem için giriş yapmalısınız." });
+            }
+
+            if (!ObjectId.TryParse(noteId, out var parsedNoteId))
+            {
+                return Ok(new { success = false, message = "Geçersiz not kimliği." });
+            }
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!ObjectId.TryParse(userId, out var parsedUserId))
+            {
+                return Ok(new { success = false, message = "Geçersiz kullanıcı kimliği." });
+            }
+
+            var user = await _users.Find(u => u.UserId == parsedUserId).FirstOrDefaultAsync();
+            if (user == null)
+            {
+                return NotFound("Kullanıcı bulunamadı.");
+            }
+
+            var note = await _notes.Find(n => n.NoteId == parsedNoteId).FirstOrDefaultAsync();
+            if (note == null || note.OwnerUsername != user.UserName) // Sadece kendi notlarını paylaşabilir
+            {
+                return BadRequest("Not bulunamadı veya paylaşım yetkiniz yok.");
+            }
+
+            if (!user.SharedNotes.Contains(parsedNoteId))
+            {
+                user.SharedNotes.Add(parsedNoteId);
+                user.SharedNotesCount = user.SharedNotes.Count;
+                await _users.UpdateOneAsync(
+                    u => u.UserId == parsedUserId,
+                    Builders<User>.Update
+                        .Set(u => u.SharedNotes, user.SharedNotes)
+                        .Set(u => u.SharedNotesCount, user.SharedNotesCount));
+            }
+
+            return Ok(new { success = true, message = "Not paylaşıma açıldı." });
         }
     }
 

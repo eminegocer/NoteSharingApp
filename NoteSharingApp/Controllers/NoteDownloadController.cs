@@ -21,7 +21,6 @@ namespace NoteSharingApp.Controllers
         [HttpPost]
         public async Task<IActionResult> TrackDownload(string noteId, string source)
         {
-            // Sohbet dosyaları alınan notlara eklenmesin
             if (source == "chat")
             {
                 return Json(new { success = true, message = "Chat dosyaları alınan notlara eklenmez." });
@@ -34,14 +33,12 @@ namespace NoteSharingApp.Controllers
 
             if (!ObjectId.TryParse(noteId, out var parsedNoteId))
             {
-                // Eğer noteId bir ObjectId değilse (ör: chat dosyası), yine de kayıt oluştur
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!ObjectId.TryParse(userId, out var parsedUserId))
                 {
                     return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
                 }
 
-                // Aynı dosya için tekrar kayıt olmasın diye kontrol
                 var hasDownloaded = await _downloadedNoteRepository.GetUserDownloadedNotes(parsedUserId);
                 bool alreadyDownloaded = hasDownloaded.Any(x => x.NotePdfFilePath != null && x.NotePdfFilePath.Contains(noteId));
                 if (!alreadyDownloaded)
@@ -49,10 +46,10 @@ namespace NoteSharingApp.Controllers
                     var downloadedNote = new DownloadedNote
                     {
                         UserId = parsedUserId,
-                        NoteId = ObjectId.Empty, // Not yok, boş bırak
+                        NoteId = ObjectId.Empty,
                         Source = source ?? "chat",
                         DownloadedAt = DateTime.UtcNow,
-                        NoteTitle = noteId, // Dosya adı
+                        NoteTitle = noteId,
                         NoteOwnerId = ObjectId.Empty,
                         NoteOwnerUsername = "Chat Dosyası",
                         NoteCategory = "Chat",
@@ -71,15 +68,12 @@ namespace NoteSharingApp.Controllers
                 return Json(new { success = false, message = "Geçersiz kullanıcı kimliği." });
             }
 
-            // Check if user has already downloaded this note
             var hasDownloaded2 = await _downloadedNoteRepository.HasUserDownloadedNote(parsedUserId2, parsedNoteId);
             if (!hasDownloaded2)
             {
-                // Notun detaylarını al
                 var note = await _database.Notes.Find(n => n.NoteId == parsedNoteId).FirstOrDefaultAsync();
                 if (note == null)
                 {
-                    // Not yoksa, yine de kayıt oluştur (ör: silinmiş not)
                     var downloadedNote = new DownloadedNote
                     {
                         UserId = parsedUserId2,
@@ -95,36 +89,37 @@ namespace NoteSharingApp.Controllers
                         NoteContent = null
                     };
                     await _downloadedNoteRepository.AddAsync(downloadedNote);
-                    return Json(new { success = true });
+                }
+                else
+                {
+                    var downloadedNote2 = new DownloadedNote
+                    {
+                        UserId = parsedUserId2,
+                        NoteId = parsedNoteId,
+                        Source = source,
+                        DownloadedAt = DateTime.UtcNow,
+                        NoteTitle = note.Title,
+                        NoteOwnerId = note.OwnerId,
+                        NoteOwnerUsername = note.OwnerUsername,
+                        NoteCategory = note.Category,
+                        NotePdfFilePath = note.PdfFilePath,
+                        NotePage = note.Page,
+                        NoteContent = note.Content
+                    };
+                    await _downloadedNoteRepository.AddAsync(downloadedNote2);
                 }
 
-                // Create new download record with details
-                var downloadedNote2 = new DownloadedNote
-                {
-                    UserId = parsedUserId2,
-                    NoteId = parsedNoteId,
-                    Source = source,
-                    DownloadedAt = DateTime.UtcNow,
-                    NoteTitle = note.Title,
-                    NoteOwnerId = note.OwnerId,
-                    NoteOwnerUsername = note.OwnerUsername,
-                    NoteCategory = note.Category,
-                    NotePdfFilePath = note.PdfFilePath,
-                    NotePage = note.Page,
-                    NoteContent = note.Content
-                };
-
-                await _downloadedNoteRepository.AddAsync(downloadedNote2);
-
-                // Update user's received notes count
+                // Update user's ReceivedNotes list
                 var user = await _database.Users.Find(u => u.UserId == parsedUserId2).FirstOrDefaultAsync();
-                if (user != null)
+                if (user != null && !user.ReceivedNotes.Contains(parsedNoteId))
                 {
-                    user.ReceivedNotesCount++;
+                    user.ReceivedNotes.Add(parsedNoteId);
+                    user.ReceivedNotesCount = user.ReceivedNotes.Count;
                     await _database.Users.UpdateOneAsync(
                         u => u.UserId == parsedUserId2,
-                        Builders<User>.Update.Set(u => u.ReceivedNotesCount, user.ReceivedNotesCount)
-                    );
+                        Builders<User>.Update
+                            .Set(u => u.ReceivedNotes, user.ReceivedNotes)
+                            .Set(u => u.ReceivedNotesCount, user.ReceivedNotesCount));
                 }
             }
 
@@ -147,7 +142,6 @@ namespace NoteSharingApp.Controllers
 
             var downloadedNotes = await _downloadedNoteRepository.GetUserDownloadedNotes(parsedUserId);
 
-            // DownloadedNote içindeki detayları frontend ile uyumlu alan adlarıyla döndür
             var notesDto = downloadedNotes.Select(n => new {
                 NoteId = n.NoteId.ToString(),
                 NoteTitle = n.NoteTitle,
@@ -162,5 +156,6 @@ namespace NoteSharingApp.Controllers
 
             return Json(new { success = true, notes = notesDto });
         }
+        
     }
 } 

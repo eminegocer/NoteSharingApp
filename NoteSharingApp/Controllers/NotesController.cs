@@ -6,6 +6,7 @@ using NoteSharingApp.Repository;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using static OpenAI.ObjectModels.SharedModels.IOpenAiModels;
 
 namespace NoteSharingApp.Controllers
 {
@@ -39,7 +40,6 @@ namespace NoteSharingApp.Controllers
             ViewBag.Categories = categories;
             return View();
         }
-
 
         [HttpPost]
         public async Task<IActionResult> AddNote(Note note, IFormFile PdfFile)
@@ -97,6 +97,7 @@ namespace NoteSharingApp.Controllers
                 ModelState.AddModelError("", "Kullanıcı kimliği alınamadı.");
                 return View(note);
             }
+
             // String userId'yi ObjectId'ye çevir
             if (!ObjectId.TryParse(userId, out var parsedOwnerId))
             {
@@ -114,13 +115,29 @@ namespace NoteSharingApp.Controllers
 
             // Kullanıcı bilgilerini not nesnesine ekle
             note.OwnerId = parsedOwnerId;
-            note.OwnerUsername = user.UserName;         
+            note.OwnerUsername = user.UserName;
+            note.CreatedAt = DateTime.UtcNow; // CreatedAt'i manuel ekliyoruz (eğer modelde yoksa)
 
-            // Veritabanına kaydetS
+            // Veritabanına kaydet
             try
             {
                 var notesCollection = _database.Notes;
                 await notesCollection.InsertOneAsync(note);
+
+                // Yeni eklenen notun NoteId'sini al
+                var insertedNoteId = note.NoteId; // MongoDB otomatik olarak NoteId atar
+
+                // Kullanıcının SharedNotes listesini güncelle
+                if (!user.SharedNotes.Contains(insertedNoteId))
+                {
+                    user.SharedNotes.Add(insertedNoteId);
+                    user.SharedNotesCount = user.SharedNotes.Count;
+                    await _database.Users.UpdateOneAsync(
+                        u => u.UserId == parsedOwnerId,
+                        Builders<User>.Update
+                            .Set(u => u.SharedNotes, user.SharedNotes)
+                            .Set(u => u.SharedNotesCount, user.SharedNotesCount));
+                }
             }
             catch (Exception ex)
             {
@@ -130,6 +147,7 @@ namespace NoteSharingApp.Controllers
 
             return RedirectToAction("HomePage");
         }
+    
 
         public async Task<IActionResult> NoteDetail(string id, string returnUrl)
         {
