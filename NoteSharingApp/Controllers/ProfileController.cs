@@ -37,25 +37,32 @@ namespace NoteSharingApp.Controllers
                 return NotFound();
             }
 
-            // Get user's shared notes based on OwnerUsername
-            var sharedNotes = await _notes.Find(n => n.OwnerUsername == user.UserName)
+            // Get user's shared notes using SharedNotes list
+            var sharedNotes = await _notes.Find(n => user.SharedNotes.Contains(n.NoteId))
                 .SortByDescending(n => n.CreatedAt)
                 .ToListAsync();
 
-            // Update user's shared notes count
+            // Get user's received notes using ReceivedNotes list
+            var receivedNotes = await _notes.Find(n => user.ReceivedNotes.Contains(n.NoteId))
+                .SortByDescending(n => n.CreatedAt)
+                .ToListAsync();
+
+            // Update counts
             user.SharedNotesCount = sharedNotes.Count;
+            user.ReceivedNotesCount = receivedNotes.Count;
 
             // Update the user document in the database
             await _users.UpdateOneAsync(
                 u => u.UserId == user.UserId,
                 Builders<User>.Update
-                    .Set(u => u.SharedNotesCount, user.SharedNotesCount));
+                    .Set(u => u.SharedNotesCount, user.SharedNotesCount)
+                    .Set(u => u.ReceivedNotesCount, user.ReceivedNotesCount));
 
             var viewModel = new ProfileViewModel
             {
                 User = user,
                 SharedNotes = sharedNotes,
-                ReceivedNotes = new List<Note>() // Empty list since note sharing is not implemented yet
+                ReceivedNotes = receivedNotes
             };
 
             return View(viewModel);

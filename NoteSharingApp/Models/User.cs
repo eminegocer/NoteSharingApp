@@ -51,6 +51,13 @@ namespace NoteSharingApp.Models
         [BsonElement("LastLogin")]
         [BsonRepresentation(BsonType.DateTime)]
         public DateTime? LastLogin { get; set; }
+
+        [BsonElement("ReceivedNotes")]
+        public List<ObjectId> ReceivedNotes { get; set; } = new List<ObjectId>(); // Yeni alan
+
+        [BsonElement("SharedNotes")] // Yeni eklenen alan
+        public List<ObjectId> SharedNotes { get; set; } = new List<ObjectId>(); // Kullanıcının paylaştığı notların ID'leri
+
     }
 
 }
