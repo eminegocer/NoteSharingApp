@@ -26,30 +26,46 @@
                         }
                     </div>
                     <h3 class="card-title mb-1 text-main">@Model.User.UserName</h3>
-                    <p class="text-muted mb-2">@Model.User.Email</p>
-                    <div class="d-flex justify-content-center gap-2 mb-2">
-                        @if (!string.IsNullOrEmpty(Model.User.Department))
-                        {
-                            <span class="badge badge-main">@Model.User.Department</span>
-                        }
-                        @if (Model.User.Year.HasValue)
-                        {
-                            <span class="badge badge-year">@Model.User.Year. Sınıf</span>
-                        }
-                    </div>
-                    @if (!string.IsNullOrEmpty(Model.User.Bio))
-                    {
-                        <div class="profile-bio-box">@Model.User.Bio</div>
-                    }
-                    <div class="profile-stats mt-4">
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <h5 class="mb-0 text-main">@Model.User.SharedNotesCount</h5>
-                                <p class="text-muted">Paylaşılan Not</p>
+                    <div class="profile-info-flex mb-3">
+                        <div class="profile-info-box">
+                            <div class="profile-info-title">Akademik Bilgiler</div>
+                            <div class="profile-info-row">
+                                <i class="fas fa-building text-main me-2"></i>
+                                <span class="profile-info-label">Bölüm:</span>
+                                <span class="profile-info-value">@Model.User.Department</span>
                             </div>
-                            <div class="col-6">
-                                <h5 class="mb-0 text-accent">@Model.User.ReceivedNotesCount</h5>
-                                <p class="text-muted">Alınan Not</p>
+                            <div class="profile-info-row">
+                                <i class="fas fa-layer-group text-main me-2"></i>
+                                <span class="profile-info-label">Sınıf:</span>
+                                <span class="profile-info-value">@Model.User.Year. Sınıf</span>
+                            </div>
+                        </div>
+                        <div class="profile-side-boxes">
+                            <div class="profile-side-box">
+                                <div class="profile-info-title">E-posta</div>
+                                <div class="profile-info-value">@Model.User.Email</div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.User.Bio))
+                            {
+                                <div class="profile-side-box">
+                                    <div class="profile-info-title">Biyografi</div>
+                                    <div class="profile-info-value">@Model.User.Bio</div>
+                                </div>
+                            }
+                            <div class="profile-side-box">
+                                <div class="profile-info-title">Not İstatistikleri</div>
+                                <div class="profile-stats-box">
+                                    <div class="profile-stats-row">
+                                        <i class="fas fa-upload text-main me-2"></i>
+                                        <span class="profile-info-label">Paylaşılan Not:</span>
+                                        <span class="profile-info-value">@Model.User.SharedNotesCount</span>
+                                    </div>
+                                    <div class="profile-stats-row">
+                                        <i class="fas fa-download text-main me-2"></i>
+                                        <span class="profile-info-label">Alınan Not:</span>
+                                        <span class="profile-info-value">@Model.User.ReceivedNotesCount</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -95,8 +111,9 @@
         <div class="col-lg-8 d-flex flex-column align-items-center">
             <!-- Paylaşılan Notlar -->
             <div class="card shadow mb-4 border-0 w-100">
-                <div class="card-header bg-main text-white rounded-top-4">
-                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Paylaşılan Notlar</h5>
+                <div class="modern-section-header">
+                    <i class="fas fa-upload text-main me-2"></i>
+                    <span>Paylaşılan Notlar</span>
                 </div>
                 <div class="card-body bg-white rounded-bottom-4">
                     @if (Model.SharedNotes.Any())
@@ -139,8 +156,9 @@
 
             <!-- Alınan Notlar -->
             <div class="card shadow mb-4 border-0 w-100">
-                <div class="card-header bg-accent text-white rounded-top-4">
-                    <h5 class="mb-0"><i class="fas fa-download me-2"></i>Alınan Notlar</h5>
+                <div class="modern-section-header">
+                    <i class="fas fa-download text-main me-2"></i>
+                    <span>Alınan Notlar</span>
                 </div>
                 <div class="card-body bg-white rounded-bottom-4">
                     <div id="downloadedNotes" class="notes-grid">
@@ -623,5 +641,109 @@
     .btn-outline-danger:hover {
         background-color: #dc3545;
         color: #fff;
+    }
+
+    .profile-info-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 1rem;
+        color: #374151;
+        margin-bottom: 2px;
+    }
+    .profile-info-label {
+        font-weight: 500;
+        color: #374151;
+    }
+    .profile-info-value {
+        color: #1a237e;
+        font-weight: 400;
+    }
+    .text-main {
+        color: #1a237e !important;
+    }
+
+    .profile-info-flex {
+        display: flex;
+        align-items: flex-start;
+        gap: 40px;
+        justify-content: center;
+        margin-bottom: 24px;
+        margin-left: 0;
+    }
+    .profile-info-box {
+        background: #f8f9fa;
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.08);
+        padding: 24px 32px;
+        min-width: 260px;
+        max-width: 320px;
+        border: 1px solid #e0e7ef;
+        flex: 1 1 320px;
+    }
+    .profile-info-title {
+        font-size: 1.08rem;
+        font-weight: 600;
+        color: #1a237e;
+        margin-bottom: 10px;
+    }
+    .profile-side-boxes {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        flex: 1 1 320px;
+        min-width: 260px;
+        max-width: 340px;
+    }
+    .profile-side-box {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(139, 164, 253, 0.10);
+        padding: 18px 22px;
+        border: 1px solid #e0e7ef;
+    }
+    .profile-stats-box {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .profile-stats-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 1rem;
+    }
+    @@media (max-width: 991px) {
+        .profile-info-flex {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 18px;
+            margin-left: 0;
+        }
+        .profile-side-boxes {
+            flex-direction: row;
+            gap: 12px;
+            min-width: unset;
+            max-width: 100%;
+        }
+        .profile-info-box, .profile-side-box {
+            min-width: unset;
+            max-width: 100%;
+            width: 100%;
+        }
+    }
+
+    .modern-section-header {
+        display: flex;
+        align-items: center;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a237e;
+        background: none;
+        border-radius: 0.75rem 0.75rem 0 0;
+        padding: 18px 24px 10px 24px;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 0;
+        letter-spacing: 0.01em;
     }
 </style>

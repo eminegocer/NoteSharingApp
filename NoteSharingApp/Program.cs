@@ -18,6 +18,9 @@ builder.WebHost.UseUrls("http://0.0.0.0:5000");
 builder.Services.AddControllersWithViews();
 builder.Services.AddControllers(); // API için gerekli
 
+// IConfiguration servisini ekle
+builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
+
 // CORS politikasını ekle
 // 2. CORS — mobil ve web için tek bir genel policy
 builder.Services.AddCors(options =>

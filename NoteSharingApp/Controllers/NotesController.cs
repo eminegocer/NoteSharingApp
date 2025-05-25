@@ -21,10 +21,10 @@ namespace NoteSharingApp.Controllers
 
         public async Task<IActionResult> HomePage()
         {
-            var notes = _database.Notes
+            var notes = await _database.Notes
                 .Find(x => true)
                 .SortByDescending(x => x.CreatedAt)
-                .ToList();
+                .ToListAsync();
 
             return View(notes);
         }
