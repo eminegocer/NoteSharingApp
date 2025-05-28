@@ -3,10 +3,21 @@
 <div class="flex h-screen bg-gray-100">
     <!-- Sol Panel: Paylaşılan Notlar (70%) -->
     <main class="w-[70%] p-6 pl-4 m-2 bg-white shadow-lg rounded-lg overflow-y-auto flex flex-col items-center">
+        <!-- Test Önerisi Paneli (Tüm Sayfalarda Görünecek) -->
+        <div id="test-suggestion-panel" class="w-full max-w-4xl mb-6 p-4 bg-gradient-to-r from-yellow-100 to-lime-100 rounded-xl shadow-md border border-transparent flex items-center justify-between animate-border-fade-in">
+            <div class="text-left">
+                <h2 class="text-lg font-semibold text-gray-800">Sana Özel İhtiyacın Olan Notları Bulmak İster Misin?</h2>
+                <p class="text-sm text-gray-600 mt-1">Kısa bir test çözerek sana en uygun notları keşfet!</p>
+            </div>
+            <button id="start-test-btn" class="bg-yellow-400 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:bg-yellow-500 transition-all duration-200 scale-hover">
+                Teste Başla
+            </button>
+        </div>
+
         <!-- Ana sayfa içeriği (notlar) -->
         <div id="mainContent" class="w-full max-w-4xl">
             <div class="flex flex-col items-center justify-center mb-6 w-full">
-                <h1 class="text-2xl font-bold text-purple-500 text-center w-full">Son Eklenen Notlar</h1>
+                <h1 class="text-2xl font-bold text-blue-400 text-center w-full">Son Eklenen Notlar</h1>
                 <p class="text-sm text-gray-600/70 mt-1 text-center w-full">Paylaşılan en güncel notlar</p>
                 <div class="flex justify-end w-full mt-2">
                     <a href="/Notes/AddNote" class="btn btn-pastel-mor px-6 py-2 rounded-full shadow hover:shadow-lg transition-all duration-200">
@@ -17,13 +28,13 @@
 
             <div class="flex justify-center items-center mb-6 w-full">
                 <input id="search-term" class="p-2 rounded-l-full border border-gray-300 w-1/2 max-w-md" type="text" placeholder="Not ara..." oninput="searchNotes()">
-                <button class="btn bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-r-full shadow hover:shadow-lg transition-all duration-200" onclick="searchNotes()">
-                    <i class="fas fa-search mr-2"></i> Ara
+                <button class="btn bg-blue-400 hover:bg-blue-200 text-white px-6 py-2 rounded-r-full shadow hover:shadow-lg transition-all duration-200" onclick="searchNotes()">
+                    <i class="fas fa-search mr-2 text-white"></i> Ara
                 </button>
             </div>
 
             <!-- Filtrelenmiş Notlar -->
-            <div id="filtered-notes" class="w-full max-w-4xl mx-auto space-y-4 mb-8" style="display: none; max-height: 600px; overflow-y: auto;">
+            <div id="filtered-notes" class="w-full max-w-4xl mx-auto space-y-4 mb-8" style="display: none; max-height: unset; overflow-y: unset;">
                 <!-- Arama sonuçları burada listelenecek -->
             </div>
 
@@ -39,181 +50,615 @@
                 }
                 else
                 {
-                    @foreach (var note in Model)
-                    {
-                        <div class="relative">
-                            <div class="absolute top-2 right-2 z-10">
-                                <button class="text-purple-500 hover:text-purple-700 bg-white rounded-full p-2 shadow"
-                                        onclick="event.stopPropagation(); getPdfSummary('@(System.IO.Path.GetFileName(note.PdfFilePath))')"
-                                        title="Yapay Zeka ile Özetle">
-                                    <i class="fas fa-robot"></i>
-                                </button>
-                            </div>
-                            <div class="bg-green-50 hover:bg-white rounded-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg cursor-pointer max-w-2xl mx-auto flex flex-col gap-4 shadow group"
-                                 onclick="location.href='@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = "/Notes/HomePage" })'">
-                                <h3 class="text-2xl font-semibold text-gray-800 group-hover:text-gray-900 mb-2">@note.Title</h3>
-                                <div class="flex flex-wrap items-center gap-3 mb-2">
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                        <i class="fas fa-book-open mr-1"></i> Sayfa: @note.Page
-                                    </span>
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                        <i class="fas fa-user mr-1"></i> @note.OwnerUsername
-                                    </span>
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                        <i class="fas fa-folder mr-1"></i> @note.Category
-                                    </span>
-                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                        <i class="fas fa-clock mr-1"></i> @note.CreatedAt.ToString("dd.MM.yyyy HH:mm")
-                                    </span>
-                                </div>
-                                <p class="text-gray-700 mb-3">@note.Content</p>
-                                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                    <button class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
-                                        <i class="fas fa-share-alt"></i>
-                                        <span>Paylaş</span>
+                    <div id="notes-container" class="grid grid-cols-1 gap-8">
+                        @foreach (var note in Model)
+                        {
+                            <div class="note-item relative animate-fade-in">
+                                <div class="absolute top-2 right-2 z-10">
+                                    <button class="text-blue-400 hover:text-blue-700 bg-white rounded-full p-1.5 shadow"
+                                            onclick="event.stopPropagation(); getPdfSummary('@(System.IO.Path.GetFileName(note.PdfFilePath))')"
+                                            title="Yapay Zeka ile Özetle">
+                                        <i class="fas fa-robot"></i>
                                     </button>
-                                    <a href="@note.PdfFilePath" target="_blank" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
-                                        <i class="fas fa-file-pdf"></i>
-                                        <span>PDF İndir</span>
-                                    </a>
+                                </div>
+                                <div class="bg-green-50 hover:bg-white rounded-xl p-4 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg cursor-pointer max-w-2xl mx-auto flex flex-col gap-2 shadow group"
+                                     onclick="location.href='@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = "/Notes/HomePage" })'">
+                                    <h3 class="text-xl font-semibold text-gray-800 group-hover:text-gray-900">@note.Title</h3>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="px-2 py-0.5 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                            <i class="fas fa-book-open mr-1"></i> Sayfa: @note.Page
+                                        </span>
+                                        <span class="px-2 py-0.5 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                            <i class="fas fa-user mr-1"></i> @note.OwnerUsername
+                                        </span>
+                                        <span class="px-2 py-0.5 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                            <i class="fas fa-folder mr-1"></i> @note.Category
+                                        </span>
+                                        <span class="px-2 py-0.5 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                            <i class="fas fa-clock mr-1"></i> @note.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                        </span>
+                                    </div>
+                                    <p class="text-gray-700 text-sm line-clamp-2">@note.Content</p>
+                                    <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                                        <button class="text-gray-500 hover:text-green-600 text-xs flex items-center gap-1 bg-transparent">
+                                            <i class="fas fa-share-alt"></i>
+                                            <span>Paylaş</span>
+                                        </button>
+                                        <a href="@note.PdfFilePath" target="_blank" class="text-gray-500 hover:text-green-600 text-xs flex items-center gap-1 bg-transparent">
+                                            <i class="fas fa-file-pdf"></i>
+                                            <span>PDF İndir</span>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
+                        }
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="flex justify-center items-center gap-2 mt-8">
+                        <button id="prev-page" class="px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <div id="page-numbers" class="flex gap-2">
+                            <!-- Page numbers will be inserted here by JavaScript -->
                         </div>
-                    }
+                        <button id="next-page" class="px-4 py-2 bg-blue-400 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
                 }
             </div>
         </div>
     </main>
 
     <!-- Sağ Panel: Bölünmüş -->
-    <aside class="w-[30%] bg-white shadow-lg p-4 m-2 rounded-lg flex flex-col gap-6">
+    <aside class="w-[30%] bg-white shadow-lg p-3 m-2 rounded-lg flex flex-col gap-4 min-h-0" style="min-width:320px; max-width:400px;">
         <!-- Yapay Zeka Özeti Bölümü -->
-        <div class="bg-gray-50 p-4 rounded-lg mb-4">
+        <div class="bg-white border border-gray-200 p-4 rounded-lg mb-2 flex flex-col" style="min-height:160px; max-height:220px; overflow-y:auto;">
             <div class="flex items-center justify-between mb-2">
-                <h2 class="text-xl font-bold text-purple-400">Yapay Zeka Özeti</h2>
-                <i class="fas fa-robot text-purple-400"></i>
+                <div class="flex items-center gap-2">
+                    <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M24 4C24 4 28 16 40 24C28 32 24 44 24 44C24 44 20 32 8 24C20 16 24 4 24 4Z" stroke="#2563eb" stroke-width="2.2" fill="none" />
+                        <path d="M36 10C36 10 38 16 44 20C38 24 36 30 36 30C36 30 34 24 28 20C34 16 36 10 36 10Z" stroke="#2563eb" stroke-width="1.5" fill="none" />
+                        <path d="M14 28C14 28 16 32 22 36C16 40 14 44 14 44C14 44 12 40 6 36C12 32 14 28 14 28Z" stroke="#2563eb" stroke-width="1.5" fill="none" />
+                    </svg>
+                    <h2 class="text-base font-bold text-blue-700">AI Özeti</h2>
+                </div>
+                <i class="fas fa-robot text-blue-400"></i>
             </div>
             <div id="ai-summary-panel">
-                <div class="text-center text-gray-500" id="ai-summary-placeholder">
-                    <i class="fas fa-info-circle text-3xl mb-3"></i>
-                    <p>Bir not seçildiğinde özet burada görünecek.</p>
+                <div class="text-center text-gray-400" id="ai-summary-placeholder">
+                    <i class="fas fa-info-circle text-2xl mb-2"></i>
                 </div>
-                <div id="ai-summary-content" style="display:none;">
-                    <p id="ai-summary-text" class="text-gray-700"></p>
+                <div id="ai-summary-content" style="display:none; max-height:120px; overflow-y:auto;">
+                    <p id="ai-summary-text" class="text-blue-700 text-sm leading-snug"></p>
                 </div>
                 <div id="ai-summary-loading" style="display:none;">
-                    <i class="fas fa-spinner fa-spin text-purple-400 text-2xl"></i>
-                    <p>Özetleniyor...</p>
+                    <i class="fas fa-spinner fa-spin text-blue-400 text-xl"></i>
+                    <p class="text-xs">Özetleniyor...</p>
                 </div>
             </div>
+        </div>
+        <!-- En Çok Ziyaret Edilen Notlar Bölümü -->
+        <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-2">
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fas fa-fire text-red-500 text-base"></i>
+                <h2 class="text-sm font-bold text-blue-700">En Çok İndirilen Notlar</h2>
+            </div>
+            @if (ViewBag.TopDownloadedNotes != null && ViewBag.TopDownloadedNotes.Count > 0)
+            {
+                <div class="horizontal-scroll space-x-2 pb-1">
+                    @foreach (var note in ViewBag.TopDownloadedNotes)
+                    {
+                        <a href="@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = "/Notes/HomePage" })" class="inline-block bg-white border border-gray-200 hover:border-blue-400 transition rounded-md shadow-sm p-2 group min-w-[150px] max-w-[170px] align-top">
+                            <div class="flex flex-col justify-between h-full">
+                                <div>
+                                    <div class="font-semibold text-blue-700 text-xs group-hover:underline truncate">@note.Title</div>
+                                    <div class="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1"><i class="fas fa-user text-blue-200"></i> @note.OwnerUsername</div>
+                                </div>
+                                <div class="flex flex-col items-end mt-2">
+                                    <span class="bg-yellow-100 text-yellow-900 font-bold px-2 py-0.5 rounded-full text-[11px] shadow flex items-center gap-1"><i class="fas fa-download"></i> @note.DownloadCount</span>
+                                    <span class="text-[8px] text-gray-400 mt-0.5">İndirme</span>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <p class="text-gray-500 text-sm">Henüz indirilen not bulunmuyor.</p>
+                </div>
+            }
+        </div>
+        <!-- Son Ziyaret Edilen Notlar Bölümü -->
+        <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-2">
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fas fa-history text-blue-500 text-base"></i>
+                <h2 class="text-sm font-bold text-blue-700">Son Ziyaret Edilen Notlar</h2>
+            </div>
+            @if (ViewBag.RecentlyViewedNotes != null && ViewBag.RecentlyViewedNotes.Count > 0)
+            {
+                <div class="horizontal-scroll space-x-2 pb-1">
+                    @foreach (var note in ViewBag.RecentlyViewedNotes)
+                    {
+                        <a href="@Url.Action("NoteDetail", "Notes", new { id = note.NoteId, returnUrl = "/Notes/HomePage" })" class="inline-block bg-white border border-gray-200 hover:border-blue-400 transition rounded-md shadow-sm p-2 group min-w-[150px] max-w-[170px] align-top">
+                            <div class="flex flex-col justify-between h-full">
+                                <div>
+                                    <div class="font-semibold text-blue-700 text-xs group-hover:underline truncate">@note.Title</div>
+                                    <div class="text-[10px] text-gray-500 mt-0.5 flex items-center gap-1"><i class="fas fa-user text-blue-200"></i> @note.OwnerUsername</div>
+                                </div>
+                                <div class="flex flex-col items-end mt-2">
+                                    <span class="bg-blue-100 text-blue-900 font-bold px-2 py-0.5 rounded-full text-[11px] shadow flex items-center gap-1"><i class="fas fa-clock"></i> @note.LastViewedAt.ToString("dd.MM.yyyy")</span>
+                                    <span class="text-[8px] text-gray-400 mt-0.5">Son Ziyaret</span>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4">
+                    <p class="text-gray-500 text-sm">Henüz ziyaret edilen not bulunmuyor.</p>
+                </div>
+            }
         </div>
     </aside>
 </div>
 
-<script>
-function getPdfSummary(fileName) {
-    if (!fileName) return;
-    document.getElementById('ai-summary-placeholder').style.display = 'none';
-    document.getElementById('ai-summary-content').style.display = 'none';
-    document.getElementById('ai-summary-loading').style.display = 'block';
+<!-- Test Modal -->
+<div id="category-test-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full relative animate-fade-in border-2 border-transparent animate-border-fade-in">
+        <button onclick="closeTestModal()" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-xl font-bold">&times;</button>
+        <div id="category-test-panel" class="space-y-6">
+            <!-- Test başlangıç ekranı -->
+            <div id="test-start-screen" class="text-center">
+                <h2 class="text-2xl font-bold text-blue-700 mb-4">Test</h2>
+                <p class="text-gray-600 mb-6">Bu test, size en uygun notları bulmanıza yardımcı olacak. 10 soruluk bir test çözeceksiniz.</p>
+                <button onclick="startTest()" class="bg-blue-500 text-white px-8 py-3 rounded-full hover:bg-blue-600 transition-all duration-200">
+                    Teste Başla
+                </button>
+            </div>
 
-    fetch('/api/PDFSummary/' + encodeURIComponent(fileName))
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('ai-summary-loading').style.display = 'none';
-            document.getElementById('ai-summary-content').style.display = 'block';
-            document.getElementById('ai-summary-text').innerText = data.summary;
-        })
-        .catch(err => {
-            document.getElementById('ai-summary-loading').style.display = 'none';
-            document.getElementById('ai-summary-content').style.display = 'block';
-            document.getElementById('ai-summary-text').innerText = 'Özet alınamadı.';
-        });
-}
+            <!-- Test soruları ekranı -->
+            <div id="test-questions-screen" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-blue-700">Soru <span id="current-question">1/10</span></h2>
+                    <div class="text-sm text-gray-500">Kalan Süre: <span id="timer">20:00</span></div>
+                </div>
+                <div id="questions-container" class="space-y-8"></div>
+                <div class="flex justify-end mt-6">
+                    <button id="next-question-btn" class="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition-all duration-200 hidden">
+                        İlerle
+                    </button>
+                    <button onclick="submitTest()" class="bg-green-500 text-white px-6 py-2 rounded-full hover:bg-green-600 transition-all duration-200">
+                        Testi Bitir
+                    </button>
+                </div>
+            </div>
 
-let searchTimeout;
-function searchNotes() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        const term = document.getElementById('search-term').value;
-        const resultsDiv = document.getElementById('filtered-notes');
-        const mainNotesDiv = document.getElementById('main-notes');
-        
-        if (!term.trim()) {
-            resultsDiv.style.display = 'none';
-            mainNotesDiv.style.display = 'block';
-            return;
-        }
-
-        resultsDiv.style.display = 'block';
-        mainNotesDiv.style.display = 'none';
-        resultsDiv.innerHTML = '<div class="text-gray-400 text-center py-4">Aranıyor...</div>';
-
-        fetch(`/api/notes/search?term=${encodeURIComponent(term)}`)
-        .then(res => {
-            if (!res.ok) throw new Error('API error');
-            return res.json();
-        })
-        .then(notes => {
-            if (!notes || notes.length === 0) {
-                resultsDiv.innerHTML = '<div class="text-gray-400 text-center py-4">Sonuç bulunamadı.</div>';
-                return;
-            }
-            resultsDiv.innerHTML = notes.map(note => `
-                <div class="relative">
-                    <div class="absolute top-2 right-2 z-10">
-                        <button class="text-purple-500 hover:text-purple-700 bg-white rounded-full p-2 shadow"
-                                onclick="event.stopPropagation(); getPdfSummary('${note.pdfFilePath ? note.pdfFilePath.split('/').pop() : ''}')"
-                                title="Yapay Zeka ile Özetle">
-                            <i class="fas fa-robot"></i>
+            <!-- Sonuç ekranı -->
+            <div id="test-results-screen" class="hidden">
+                <h2 class="text-2xl font-bold text-blue-700 mb-6 text-center">Test Sonuçları</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Kategori başarı oranları -->
+                    <div class="bg-white p-4 rounded-xl shadow-md">
+                        <h3 class="text-base font-bold text-blue-900 mb-3">Kategori Başarı Oranları</h3>
+                        <div id="category-stats" class="flex flex-row gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-blue-50 pb-2"></div>
+                    </div>
+                    <!-- Önerilen notlar -->
+                    <div class="bg-white p-4 rounded-xl shadow-md">
+                        <h3 class="text-base font-bold text-blue-900 mb-3">Size Önerilen Notlar</h3>
+                        <div id="recommended-notes" class="flex flex-row gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-blue-50 pb-2"></div>
+                        <button onclick="location.href='/Notes/HomePage'" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition-all duration-200">
+                            Tüm Notları İncele
                         </button>
                     </div>
-                    <div class="bg-green-50 hover:bg-white rounded-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg cursor-pointer max-w-2xl mx-auto flex flex-col gap-4 shadow group"
-                             onclick="window.location.href = '/Notes/NoteDetail?id=${note.noteId || note.NoteId}&returnUrl=/Notes/HomePage'"
-                        <h3 class="text-lg font-semibold text-gray-800 group-hover:text-gray-900 mb-2">${note.title || 'Başlıksız'}</h3>
-                        <div class="flex flex-wrap items-center gap-3 mb-2">
-                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                <i class="fas fa-book-open mr-1"></i> Sayfa: ${note.page || '-'}
-                            </span>
-                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                <i class="fas fa-user mr-1"></i> ${note.ownerUsername || 'Bilinmiyor'}
-                            </span>
-                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                <i class="fas fa-folder mr-1"></i> ${note.category || 'Bilinmiyor'}
-                            </span>
-                            <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
-                                <i class="fas fa-clock mr-1"></i> ${note.createdAt ? new Date(note.createdAt).toLocaleString() : '-'}
-                            </span>
-                        </div>
-                        <p class="text-gray-700 mb-4">${note.content || ''}</p>
-                        <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <button class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
-                                <i class="fas fa-share-alt"></i>
-                                <span>Paylaş</span>
-                            </button>
-                            <a href="${note.pdfFilePath || '#'}" target="_blank" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
-                                <i class="fas fa-file-pdf"></i>
-                                <span>PDF İndir</span>
-                            </a>
-                        </div>
-                    </div>
                 </div>
-            `).join('');
-        })
-        .catch(() => {
-            resultsDiv.innerHTML = '<div class="text-red-400 text-center py-4">Arama sırasında hata oluştu.</div>';
+                <div class="flex justify-center mt-8">
+                    <button onclick="closeTestModal()" class="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition-all duration-200">
+                        Kapat
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getPdfSummary(fileName) {
+        if (!fileName) return;
+        document.getElementById('ai-summary-placeholder').style.display = 'none';
+        document.getElementById('ai-summary-content').style.display = 'none';
+        document.getElementById('ai-summary-loading').style.display = 'block';
+
+        fetch('/api/PDFSummary/' + encodeURIComponent(fileName))
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('ai-summary-loading').style.display = 'none';
+                document.getElementById('ai-summary-content').style.display = 'block';
+                document.getElementById('ai-summary-text').innerText = data.summary;
+            })
+            .catch(err => {
+                document.getElementById('ai-summary-loading').style.display = 'none';
+                document.getElementById('ai-summary-content').style.display = 'block';
+                document.getElementById('ai-summary-text').innerText = 'Özet alınamadı.';
+            });
+    }
+
+    let searchTimeout;
+    function searchNotes() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const term = document.getElementById('search-term').value;
+            const resultsDiv = document.getElementById('filtered-notes');
+            const mainNotesDiv = document.getElementById('main-notes');
+
+            if (!term.trim()) {
+                resultsDiv.style.display = 'none';
+                mainNotesDiv.style.display = 'block';
+                return;
+            }
+
+            resultsDiv.style.display = 'block';
+            mainNotesDiv.style.display = 'none';
+            resultsDiv.innerHTML = '<div class="text-gray-400 text-center py-4">Aranıyor...</div>';
+
+            fetch(`/api/notes/search?term=${encodeURIComponent(term)}`)
+            .then(res => {
+                if (!res.ok) throw new Error('API error');
+                return res.json();
+            })
+            .then(notes => {
+                if (!notes || notes.length === 0) {
+                    resultsDiv.innerHTML = '<div class="text-gray-400 text-center py-4">Sonuç bulunamadı.</div>';
+                    return;
+                }
+                resultsDiv.innerHTML = notes.map(note => {
+                    let noteId = '';
+                    if (note.noteId && typeof note.noteId === 'object' && note.noteId.$oid) {
+                        noteId = note.noteId.$oid;
+                    } else if (note.NoteId && typeof note.NoteId === 'object' && note.NoteId.$oid) {
+                        noteId = note.NoteId.$oid;
+                    } else if (typeof note.noteId === 'string') {
+                        noteId = note.noteId;
+                    } else if (typeof note.NoteId === 'string') {
+                        noteId = note.NoteId;
+                    }
+                    if (!noteId) return '';
+                    return `
+                        <div class="relative bg-green-50 hover:bg-white rounded-2xl p-8 transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:shadow-lg max-w-2xl mx-auto flex flex-col gap-4 shadow group mb-4 animate-fade-in">
+                            <div class="absolute top-2 right-2 z-10">
+                                <button class="text-blue-500 hover:text-blue-700 bg-white rounded-full p-2 shadow"
+                                        onclick="event.stopPropagation(); getPdfSummary('${note.pdfFilePath ? note.pdfFilePath.split('/').pop() : ''}')"
+                                        title="Yapay Zeka ile Özetle">
+                                    <i class="fas fa-robot"></i>
+                                </button>
+                            </div>
+                            <a href="/Notes/NoteDetail?id=${noteId}&returnUrl=/Notes/HomePage" class="block text-inherit no-underline">
+                                <h3 class="text-lg font-semibold text-gray-800 group-hover:text-gray-900 mb-2">${note.title || 'Başlıksız'}</h3>
+                                <div class="flex flex-wrap items-center gap-3 mb-2">
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-book-open mr-1"></i> Sayfa: ${note.page || '-'}
+                                    </span>
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-user mr-1"></i> ${note.ownerUsername || 'Bilinmiyor'}
+                                    </span>
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-folder mr-1"></i> ${note.category || 'Bilinmiyor'}
+                                    </span>
+                                    <span class="px-3 py-1 bg-gray-100/50 text-gray-600 rounded-full text-xs flex items-center">
+                                        <i class="fas fa-clock mr-1"></i> ${note.createdAt ? new Date(note.createdAt).toLocaleString() : '-'}
+                                    </span>
+                                </div>
+                                <p class="text-gray-700 mb-4">${note.content || ''}</p>
+                            </a>
+                            <div class="flex items-center justify-between pt-3 border-t border-gray-100 mt-2">
+                                <button type="button" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
+                                    <i class="fas fa-share-alt"></i>
+                                    <span>Paylaş</span>
+                                </button>
+                                <a href="${note.pdfFilePath || '#'}" target="_blank" class="text-gray-500 hover:text-green-600 text-sm flex items-center gap-1 bg-transparent">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span>PDF İndir</span>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(() => {
+                resultsDiv.innerHTML = '<div class="text-red-400 text-center py-4">Arama sırasında hata oluştu.</div>';
+            });
+        }, 300);
+    }
+
+    // Pagination functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const notesPerPage = 5;
+        const notesContainer = document.getElementById('notes-container');
+        const noteItems = notesContainer.querySelectorAll('.note-item');
+        const totalPages = Math.ceil(noteItems.length / notesPerPage);
+        let currentPage = 1;
+
+        // Test önerisi panelini her sayfada göster
+        const testSuggestionPanel = document.getElementById('test-suggestion-panel');
+        testSuggestionPanel.style.display = 'flex';
+
+        function showPage(pageNumber) {
+            const start = (pageNumber - 1) * notesPerPage;
+            const end = start + notesPerPage;
+
+            noteItems.forEach((note, index) => {
+                note.classList.remove('animate-fade-in'); // Önceki animasyonu kaldır
+                if (index >= start && index < end) {
+                    note.style.display = 'block';
+                    setTimeout(() => note.classList.add('animate-fade-in'), 50); // Her kart için solma efekti
+                } else {
+                    note.style.display = 'none';
+                }
+            });
+
+            updatePagination();
+        }
+
+        function updatePagination() {
+            const pageNumbers = document.getElementById('page-numbers');
+            pageNumbers.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.className = `px-4 py-2 rounded-lg ${
+                    i === currentPage
+                    ? 'bg-blue-400 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`;
+                pageButton.textContent = i;
+                pageButton.onclick = () => {
+                    currentPage = i;
+                    showPage(currentPage);
+                };
+                pageNumbers.appendChild(pageButton);
+            }
+
+            // Update prev/next buttons
+            document.getElementById('prev-page').disabled = currentPage === 1;
+            document.getElementById('next-page').disabled = currentPage === totalPages;
+        }
+
+        // Event listeners for prev/next buttons
+        document.getElementById('prev-page').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                showPage(currentPage);
+            }
         });
-    }, 300);
-}
+
+        document.getElementById('next-page').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                showPage(currentPage);
+            }
+        });
+
+        // Initialize pagination
+        showPage(1);
+
+        // Teste Başla butonuna tıklama eventi
+        document.getElementById('start-test-btn').addEventListener('click', function() {
+            openTestModal();
+        });
+
+        // Ziyaret tarihlerini kullanıcı saatine göre göster
+        document.querySelectorAll('.visited-date').forEach(function(el) {
+            const utcDate = el.getAttribute('data-visitedat');
+            if (utcDate) {
+                const d = new Date(utcDate);
+                el.textContent = d.toLocaleString('tr-TR', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit' });
+            }
+        });
+    });
+
+    // Test modal aç/kapat fonksiyonları
+    function openTestModal() {
+        const modal = document.getElementById('category-test-modal');
+        modal.classList.remove('hidden');
+        // Animasyonu yeniden tetiklemek için
+        const modalContent = modal.querySelector('div');
+        modalContent.classList.remove('animate-fade-in');
+        void modalContent.offsetWidth; // Reflow
+        modalContent.classList.add('animate-fade-in');
+    }
+
+    function closeTestModal() {
+        document.getElementById('category-test-modal').classList.add('hidden');
+    }
+
+    let testQuestions = [];
+    let currentQuestionIndex = 0;
+    let timerInterval;
+    let testAnswers = [];
+
+    async function startTest() {
+        try {
+            const response = await fetch('/api/CategoryTest/generate-questions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) throw new Error('Test soruları alınamadı');
+
+            const result = await response.json();
+            console.log('API result:', result); // LOG
+            if (!result.success) {
+                throw new Error(result.error || 'Test soruları alınamadı');
+            }
+
+            testQuestions = result.data;
+            console.log('testQuestions:', testQuestions); // LOG
+            document.getElementById('test-start-screen').classList.add('hidden');
+            document.getElementById('test-questions-screen').classList.remove('hidden');
+            showQuestion(0);
+            startTimer();
+        } catch (error) {
+            console.error('Test başlatma hatası:', error);
+            alert('Test başlatılırken bir hata oluştu. Lütfen tekrar deneyin.');
+        }
+    }
+
+    function showQuestion(index) {
+        console.log('showQuestion', index, testQuestions); // LOG
+        const question = testQuestions[index];
+        const questionsContainer = document.getElementById('questions-container');
+        questionsContainer.innerHTML = `
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <div class="mb-4">
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">${question.category}</span>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">${question.question}</h3>
+                <div class="space-y-3">
+                    ${question.choices.map((choice, i) => `
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="answer" value="${choice}" class="mr-3" onchange="selectAnswer('${choice}')">
+                            <span class="text-gray-700">${choice}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        document.getElementById('current-question').textContent = `${index + 1}/${testQuestions.length}`;
+    }
+
+    function selectAnswer(answer) {
+        let q = testQuestions[currentQuestionIndex];
+        const correct = (q.answer || '').trim().toLowerCase();
+        const userAnswer = (answer || '').trim().toLowerCase();
+        const isCorrect = userAnswer === correct;
+        testAnswers[currentQuestionIndex] = {
+            category: q.category,
+            question: q.question,
+            userAnswer: answer,
+            correctAnswer: q.answer
+        };
+
+        // Disable all options
+        document.querySelectorAll('input[name="answer"]').forEach(el => el.disabled = true);
+
+        // Show feedback
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'mt-4 flex items-center gap-2';
+        if (isCorrect) {
+            feedbackDiv.innerHTML = '<span style="color:green;font-size:1.5em;">✔️</span> <span class="text-green-700 font-semibold">Tebrikler, doğru!</span>';
+        } else {
+            feedbackDiv.innerHTML = '<span style="color:red;font-size:1.5em;">❌</span> <span class="text-red-700 font-semibold">Yanlış cevap!</span>';
+            // Açıklamayı göster
+            const expDiv = document.createElement('div');
+            expDiv.className = 'mt-2 text-sm text-blue-700 bg-blue-50 rounded p-3 explanation-box';
+            expDiv.innerText = q.explanation || 'Açıklama alınamadı.';
+            document.getElementById('questions-container').appendChild(expDiv);
+        }
+        document.getElementById('questions-container').appendChild(feedbackDiv);
+
+        // Show next question button
+        document.getElementById('next-question-btn').classList.remove('hidden');
+    }
+
+    document.getElementById('next-question-btn').addEventListener('click', function() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < testQuestions.length) {
+            showQuestion(currentQuestionIndex);
+            document.getElementById('next-question-btn').classList.add('hidden');
+        } else {
+            submitTest();
+        }
+    });
+
+    function startTimer() {
+        let timeLeft = 20 * 60; // 20 dakika
+        const timerElement = document.getElementById('timer');
+        
+        timerInterval = setInterval(() => {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                submitTest();
+            }
+            timeLeft--;
+        }, 1000);
+    }
+
+    async function submitTest() {
+        clearInterval(timerInterval);
+        
+        try {
+            const response = await fetch('/api/CategoryTest/submit-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(testAnswers)
+            });
+            
+            if (!response.ok) throw new Error('Test sonuçları gönderilemedi');
+            
+            const results = await response.json();
+            showResults(results);
+        } catch (error) {
+            console.error('Test gönderme hatası:', error);
+            alert('Test sonuçları gönderilirken bir hata oluştu. Lütfen tekrar deneyin.');
+        }
+    }
+
+    function showResults(results) {
+        document.getElementById('test-questions-screen').classList.add('hidden');
+        document.getElementById('test-results-screen').classList.remove('hidden');
+        // Kategori istatistiklerini göster
+        const categoryStats = document.getElementById('category-stats');
+        const stats = results.data ? results.data.categoryStats : [];
+        categoryStats.innerHTML = stats.map(stat => `
+            <div class="min-w-[180px] max-w-[200px] bg-blue-50 border border-blue-100 rounded-lg p-3 flex flex-col items-center shadow-sm">
+                <span class="font-semibold text-blue-800 text-sm mb-1">${stat.category}</span>
+                <div class="w-full h-2 bg-blue-100 rounded-full mb-2">
+                    <div class="h-full bg-blue-500 rounded-full" style="width: ${stat.successRate}%"></div>
+                </div>
+                <span class="text-xs font-medium text-blue-700">${stat.successRate.toFixed(1)}%</span>
+            </div>
+        `).join('');
+        // Önerilen notları göster
+        const recommendedNotes = document.getElementById('recommended-notes');
+        const notes = results.data ? results.data.recommendedNotes : [];
+        recommendedNotes.innerHTML = notes.map(note => {
+            const noteId = note.noteId || note.NoteId;
+            return `
+                <a href="/Notes/NoteDetail?id=${noteId}&returnUrl=/Notes/HomePage" 
+                   class="min-w-[220px] max-w-[240px] bg-white border border-gray-200 rounded-lg shadow-sm p-3 flex flex-col justify-between hover:shadow-md transition-all">
+                    <h4 class="font-bold text-blue-700 text-sm mb-1 truncate">${note.title}</h4>
+                    <p class="text-xs text-gray-600 mb-2 line-clamp-2">${note.content ? note.content.substring(0, 80) + (note.content.length > 80 ? '...' : '') : ''}</p>
+                    <div class="flex items-center gap-2 mt-auto">
+                        <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">${note.category}</span>
+                        <span class="text-xs text-gray-400">${note.ownerUsername}</span>
+                    </div>
+                </a>
+            `;
+        }).join('');
+    }
 </script>
 
 <style>
     .btn-pastel-mor {
-        background-color:rgb(231, 209, 252) !important;
+        background-color: rgb(231, 209, 252) !important;
         color: #6d3fa9 !important;
         font-weight: 600;
         transition: background-color 0.3s, color 0.3s;
     }
+
     .btn-pastel-mor:hover {
         background-color: #b799d6 !important;
         color: #fff !important;
@@ -221,8 +666,175 @@ function searchNotes() {
 
     /* Filtrelenmiş notlar için scrollbar stili */
     #filtered-notes {
-        max-height: 300px; /* Örnek yükseklik, ihtiyaca göre ayarlanabilir */
+        max-height: unset;
+        overflow-y: unset;
+    }
+
+    /* Pagination styles */
+    #page-numbers button {
+        transition: all 0.3s ease;
+    }
+
+    #page-numbers button:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    #prev-page, #next-page {
+        transition: all 0.3s ease;
+    }
+
+    #prev-page:hover:not(:disabled), #next-page:hover:not(:disabled) {
+        transform: translateY(-2px);
+    }
+
+    /* Note card styles */
+    .note-item {
+        margin-bottom: 1rem;
+    }
+
+    .note-item:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Add line clamp for content */
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Küçük kartlar için özel stiller */
+    .bg-gradient-to-r {
+        min-width: 0;
+    }
+
+    .group .truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .horizontal-scroll {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 2px;
+        margin-left: -4px;
+        margin-right: -4px;
+        min-height: 70px;
+        max-width: 100%;
+    }
+
+    .horizontal-scroll::-webkit-scrollbar {
+        height: 6px;
+        background: #e0e7ef;
+        border-radius: 4px;
+    }
+
+    .horizontal-scroll::-webkit-scrollbar-thumb {
+        background: #b6c6e6;
+        border-radius: 4px;
+    }
+
+    /* Test Önerisi Paneli Stilleri */
+    #test-suggestion-panel {
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    #test-suggestion-panel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Çerçeve için solma animasyonu */
+    @@keyframes borderFadeIn {
+        from {
+            border-color: transparent;
+        }
+        to {
+            border-color: #fde68a;
+        }
+    }
+
+    .animate-border-fade-in {
+        animation: borderFadeIn 0.3s ease-in-out forwards;
+    }
+
+    /* Modal animations */
+    #category-test-modal {
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    #category-test-modal.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    #category-test-modal:not(.hidden) {
+        opacity: 1;
+    }
+
+    #category-test-modal > div {
+        animation: modalFadeIn 0.3s ease-out;
+        max-height: 90vh;
         overflow-y: auto;
     }
 
+    @@keyframes modalFadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .animate-fade-in {
+        animation: modalFadeIn 0.3s ease-out;
+    }
+
+    .scrollbar-thin {
+        scrollbar-width: thin;
+    }
+    .scrollbar-thumb-blue-200::-webkit-scrollbar-thumb {
+        background: #bfdbfe;
+        border-radius: 8px;
+    }
+    .scrollbar-track-blue-50::-webkit-scrollbar-track {
+        background: #eff6ff;
+        border-radius: 8px;
+    }
+    .scrollbar-thin::-webkit-scrollbar {
+        height: 8px;
+    }
+    /* Kartlar için kurumsal ve kompakt görünüm */
+    #category-stats > div, #recommended-notes > a {
+        box-shadow: 0 1px 4px 0 rgba(30, 64, 175, 0.06);
+        border: 1px solid #e0e7ef;
+        background: #fff;
+        transition: box-shadow 0.2s, border 0.2s;
+    }
+    #category-stats > div:hover, #recommended-notes > a:hover {
+        box-shadow: 0 4px 16px 0 rgba(30, 64, 175, 0.10);
+        border-color: #2563eb;
+    }
+    /* Responsive ve daha küçük kartlar */
+    #category-stats > div, #recommended-notes > a {
+        min-width: 160px;
+        max-width: 220px;
+        font-size: 0.95em;
+    }
+    .explanation-box {
+        max-height: 220px;
+        overflow-y: auto;
+        display: block;
+    }
 </style>

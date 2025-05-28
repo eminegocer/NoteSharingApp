@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -16,7 +17,8 @@ namespace NoteSharingApp.Controllers.API
 {
     [Route("api/chat")]
     [ApiController]
-    [Authorize(AuthenticationSchemes = "Bearer,Cookies")]
+    [Authorize(AuthenticationSchemes = "Bearer")]
+
     public class ChatApiController : ControllerBase
     {
         private readonly DatabaseContext _database;
@@ -132,7 +134,14 @@ namespace NoteSharingApp.Controllers.API
             }
 
             // Yeni mesaj oluştur
-            var message = new Message(sender.UserName, messageDto.Content);
+            var message = new Message
+            {
+                SenderUsername = sender.UserName,
+                Content = messageDto.Content,
+                CreatedAt = DateTime.UtcNow,
+                FileUrl = messageDto.FileUrl,
+                IsFile = messageDto.IsFile
+            };
 
             // Chat modelinde Messages listesini güncelle
             if (chat.Messages == null)
@@ -152,15 +161,18 @@ namespace NoteSharingApp.Controllers.API
                 {
                     senderUsername = message.SenderUsername,
                     content = message.Content,
-                    createdAt = message.CreatedAt
+                    createdAt = message.CreatedAt,
+                    fileUrl = message.FileUrl // <-- Bunu da dön
                 }
             });
-        }
+}
 
         public class MessageDto
         {
             public string TargetUsername { get; set; }
             public string Content { get; set; }
+            public string? FileUrl { get; set; } // Dosya linki
+            public bool IsFile { get; set; } = false; // Dosya mı?
         }
 
         [HttpGet("search-users")]
@@ -409,7 +421,8 @@ namespace NoteSharingApp.Controllers.API
                     id = g.Id.ToString(),
                     groupName = g.GroupName,
                     schoolName = g.SchoolName,
-                    departmentName = g.DepartmentName
+                    departmentName = g.DepartmentName,
+                    memberCount = g.ParticipantIds?.Count ?? 0 
                 });
 
                 return Ok(result);
@@ -436,27 +449,58 @@ namespace NoteSharingApp.Controllers.API
                     return BadRequest(new { success = false, message = "Mesaj içeriği ve kullanıcı adı zorunludur." });
                 }
 
-                var group = await _database.SchoolGroups
+                // Önce normal gruplarda ara
+                var group = await _database.Groups
+                    .Find(g => g.Id == groupObjectId.ToString())
+                    .FirstOrDefaultAsync();
+
+                if (group != null)
+                {
+                    var newMessage = new GroupMessage
+                    {
+                        SenderUsername = request.SenderUsername,
+                        Content = request.Content,
+                        SentAt = DateTime.UtcNow,
+                        FileUrl = request.FileUrl,
+                        FileName = null // Dosya adı varsa ekleyin
+                    };
+
+                    if (group.Messages == null)
+                    {
+                        group.Messages = new List<GroupMessage>();
+                    }
+                    group.Messages.Add(newMessage);
+
+                    await _database.Groups.ReplaceOneAsync(g => g.Id == groupObjectId.ToString(), group);
+                    return Ok(new { success = true, message = "Mesaj başarıyla gönderildi." });
+                }
+
+                // Normal grupta bulunamazsa okul gruplarında ara
+                var schoolGroup = await _database.SchoolGroups
                     .Find(g => g.Id == groupObjectId)
                     .FirstOrDefaultAsync();
 
-                if (group == null)
+                if (schoolGroup != null)
                 {
-                    return NotFound(new { success = false, message = "Grup bulunamadı." });
+                    var newMessage = new Message
+                    {
+                        SenderUsername = request.SenderUsername,
+                        Content = request.Content,
+                        CreatedAt = DateTime.UtcNow,
+                        FileUrl = request.FileUrl
+                    };
+
+                    if (schoolGroup.Messages == null)
+                    {
+                        schoolGroup.Messages = new List<Message>();
+                    }
+                    schoolGroup.Messages.Add(newMessage);
+
+                    await _database.SchoolGroups.ReplaceOneAsync(g => g.Id == groupObjectId, schoolGroup);
+                    return Ok(new { success = true, message = "Mesaj başarıyla gönderildi." });
                 }
 
-                var newMessage = new Message
-                {
-                    SenderUsername = request.SenderUsername,
-                    Content = request.Content,
-                    CreatedAt = DateTime.UtcNow,
-                    FileUrl = request.FileUrl
-                };
-                group.Messages.Add(newMessage);
-
-                await _database.SchoolGroups.ReplaceOneAsync(g => g.Id == groupObjectId, group);
-
-                return Ok(new { success = true, message = "Mesaj başarıyla gönderildi." });
+                return NotFound(new { success = false, message = "Grup bulunamadı." });
             }
             catch (Exception ex)
             {
@@ -473,14 +517,6 @@ namespace NoteSharingApp.Controllers.API
             public string FileUrl { get; set; } // opsiyonel
         }
 
-        // Mesaj modeli:
-        public class GroupMessage
-        {
-            public string SenderUsername { get; set; }
-            public string Content { get; set; }
-            public DateTime CreatedAt { get; set; }
-            public string FileUrl { get; set; }
-        }
         [HttpGet("group-messages")]
         public async Task<IActionResult> GetGroupMessages([FromQuery] string groupId)
         {
@@ -553,7 +589,7 @@ namespace NoteSharingApp.Controllers.API
             return Ok(result);
         }
 
-        [HttpGet("/api/user/current")]
+        [HttpGet("current")]
         public IActionResult GetCurrentUser()
         {
             if (!User.Identity.IsAuthenticated)

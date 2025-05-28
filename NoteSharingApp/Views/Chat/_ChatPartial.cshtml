@@ -2,7 +2,7 @@
     var currentUsername = User.Identity?.Name ?? "";
 }
 
-<div id="chatPartialRoot" class="flex flex-col h-[calc(100vh-8rem)]" data-current-username="@User.Identity?.Name" data-target-username="@ViewBag.TargetUsername">
+<div id="chatPartialRoot" class="flex flex-col h-[calc(100vh-8rem)]" data-current-username="@currentUsername" data-target-username="@ViewBag.TargetUsername ?? """>
     <!-- Başlık Barı -->
     <div class="bg-[#f3e8ff] flex items-center justify-between px-6 py-3 rounded-t-xl">
         <div class="font-bold text-lg text-[#7c3aed]">@ViewBag.TargetUsername</div>
@@ -55,11 +55,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.6/signalr.min.js"></script>
 <script>
-function initPersonalChatScripts() {
-    window.sendMessage = null; // Önce temizle
-    document.addEventListener('DOMContentLoaded', function () {
-        const currentUsername = '@(User.Identity?.Name ?? "")';
-        const targetUsername = '@(ViewBag.TargetUsername ?? "")';
+    function initPersonalChatScripts(currentUsername, targetUsername) {
+        console.log("initPersonalChatScripts çalıştı", currentUsername, targetUsername);
+        window.sendMessage = null; // Önce temizle
         const chatType = '@(ViewBag.ChatType ?? "personal")';
 
         const messageInput = document.getElementById("messageInput");
@@ -139,7 +137,23 @@ function initPersonalChatScripts() {
                 await connection.invoke("SendMessage", currentUsername, targetUsername, message, chatType);
                 messageInput.value = '';
             } catch (err) {
-                alert("Mesaj gönderilemedi: " + err.message);
+                // SignalR başarısızsa HTTP POST ile gönder
+                console.warn("SignalR ile gönderilemedi, HTTP POST ile denenecek", err);
+                fetch('/Chat/SendPersonalMessage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderUsername: currentUsername, targetUsername: targetUsername, content: message })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Mesaj gönderilemedi: ' + data.message);
+                    } else {
+                        // Mesajı ekrana ekle
+                        appendMessage(currentUsername, message, false);
+                        messageInput.value = '';
+                    }
+                });
             }
         };
 
@@ -183,6 +197,11 @@ function initPersonalChatScripts() {
             }
         });
 
+        // Gönder butonuna tıklama ile mesaj gönderme
+        document.getElementById('sendMessageBtn').addEventListener('click', function() {
+            sendMessage();
+        });
+
         // Mesaj alma olayını dinle
         connection.on("ReceiveMessage", (senderUsername, message) => {
             console.log('Received message:', { senderUsername, message });
@@ -212,9 +231,9 @@ function initPersonalChatScripts() {
         function appendMessage(senderUsername, content, isFile, fileUrl = null) {
             const messageDiv = document.createElement("div");
             const isCurrentUser = senderUsername === currentUsername;
-            
+
             messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`;
-            
+
             let messageContent = '';
             if (isFile) {
                 messageContent = `
@@ -236,7 +255,7 @@ function initPersonalChatScripts() {
                     </span>
                 </div>
             `;
-            
+
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
@@ -246,17 +265,8 @@ function initPersonalChatScripts() {
 
         // Scroll to bottom after loading chat history
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-        // Kişisel sohbet mesaj gönderme butonunu aktif et (her panel yüklemesinde çalışır)
-        setTimeout(function() {
-            var sendBtn = document.getElementById('sendMessageBtn');
-            if (sendBtn) {
-                sendBtn.onclick = function() {
-                    if (window.sendMessage) window.sendMessage();
-                };
-            }
-        }, 0);
     }
+    window.initPersonalChatScripts = initPersonalChatScripts;
 
     // Chat dosyası indirme takibi
     function trackChatFileDownload(fileUrl) {
@@ -282,6 +292,4 @@ function initPersonalChatScripts() {
             });
         }
     }
-}
-window.initPersonalChatScripts = initPersonalChatScripts;
 </script>

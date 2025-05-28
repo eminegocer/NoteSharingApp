@@ -7,6 +7,7 @@ using NoteSharingApp.Repository;
 
 namespace NoteSharingApp.Controllers
 {
+    // Kullanıcı profil işlemlerini yöneten controller
     public class ProfileController : Controller
     {
         private readonly IMongoCollection<User> _users;
@@ -23,6 +24,7 @@ namespace NoteSharingApp.Controllers
             _downloadedNoteRepository = new DownloadedNoteRepository(database);
         }
 
+        // Profil sayfasını görüntüler
         public async Task<IActionResult> Index()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

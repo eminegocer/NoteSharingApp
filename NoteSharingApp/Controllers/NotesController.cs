@@ -10,6 +10,7 @@ using static OpenAI.ObjectModels.SharedModels.IOpenAiModels;
 
 namespace NoteSharingApp.Controllers
 {
+    // Not işlemlerini yöneten controller (yükleme, listeleme, silme vb.)
     public class NotesController : Controller
     {
         private readonly DatabaseContext _database;
@@ -19,6 +20,7 @@ namespace NoteSharingApp.Controllers
             _database = database;
         }
 
+        // Notları listeler
         public async Task<IActionResult> HomePage()
         {
             var notes = await _database.Notes
@@ -26,9 +28,27 @@ namespace NoteSharingApp.Controllers
                 .SortByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
+            // Get most downloaded notes
+            var topDownloadedNotes = await _database.Notes
+                .Find(x => true)
+                .SortByDescending(x => x.DownloadCount)
+                .Limit(5)
+                .ToListAsync();
+
+            // Get recently viewed notes
+            var recentlyViewedNotes = await _database.Notes
+                .Find(x => true)
+                .SortByDescending(x => x.LastViewedAt)
+                .Limit(5)
+                .ToListAsync();
+
+            ViewBag.TopDownloadedNotes = topDownloadedNotes;
+            ViewBag.RecentlyViewedNotes = recentlyViewedNotes;
+
             return View(notes);
         }
 
+        // Yeni not yükleme sayfasını görüntüler
         public async Task<IActionResult> AddNote()
         {
             if (!User.Identity.IsAuthenticated)
@@ -41,6 +61,7 @@ namespace NoteSharingApp.Controllers
             return View();
         }
 
+        // Not yükleme işlemini gerçekleştirir
         [HttpPost]
         public async Task<IActionResult> AddNote(Note note, IFormFile PdfFile)
         {
@@ -147,8 +168,8 @@ namespace NoteSharingApp.Controllers
 
             return RedirectToAction("HomePage");
         }
-    
 
+        // Not detaylarını görüntüler
         public async Task<IActionResult> NoteDetail(string id, string returnUrl)
         {
             if (string.IsNullOrEmpty(id))
@@ -160,6 +181,45 @@ namespace NoteSharingApp.Controllers
             var note = await _database.Notes.Find(x => x.NoteId == objectId).FirstOrDefaultAsync();
             if (note == null)
                 return NotFound();
+
+            // Update LastViewedAt timestamp
+            await _database.Notes.UpdateOneAsync(
+                n => n.NoteId == objectId,
+                Builders<Note>.Update.Set(n => n.LastViewedAt, DateTime.UtcNow)
+            );
+
+            // Update user's visited notes if user is authenticated
+            if (User.Identity.IsAuthenticated)
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId) && ObjectId.TryParse(userId, out var parsedUserId))
+                {
+                    var user = await _database.Users.Find(u => u.UserId == parsedUserId).FirstOrDefaultAsync();
+                    if (user != null)
+                    {
+                        // Create new visited note entry
+                        var visitedNote = new VisitedNote
+                        {
+                            NoteId = note.NoteId,
+                            Title = note.Title,
+                            VisitedAt = DateTime.UtcNow
+                        };
+
+                        // Add to visited notes list and keep only last 4
+                        user.VisitedNotes.Insert(0, visitedNote);
+                        if (user.VisitedNotes.Count > 4)
+                        {
+                            user.VisitedNotes = user.VisitedNotes.Take(4).ToList();
+                        }
+
+                        // Update user in database
+                        await _database.Users.UpdateOneAsync(
+                            u => u.UserId == parsedUserId,
+                            Builders<User>.Update.Set(u => u.VisitedNotes, user.VisitedNotes)
+                        );
+                    }
+                }
+            }
 
             ViewBag.ReturnUrl = returnUrl ?? "/Profile";
             return View(note);

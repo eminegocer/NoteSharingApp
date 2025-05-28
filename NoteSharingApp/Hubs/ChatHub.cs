@@ -51,7 +51,7 @@ namespace NoteSharingApp.Hubs
 
                     // Find or create chat
                     var chat = await _database.Chats
-                        .Find(c => 
+                        .Find(c =>
                             (c.SenderUsername == senderUsername && c.ReceiverUsername == receiverUsername) ||
                             (c.SenderUsername == receiverUsername && c.ReceiverUsername == senderUsername))
                         .FirstOrDefaultAsync();
@@ -202,7 +202,7 @@ namespace NoteSharingApp.Hubs
                 }
 
                 var chat = await _database.Chats
-                    .Find(c => 
+                    .Find(c =>
                         (c.SenderUsername == senderUsername && c.ReceiverUsername == receiverUsername) ||
                         (c.SenderUsername == receiverUsername && c.ReceiverUsername == senderUsername))
                     .FirstOrDefaultAsync();

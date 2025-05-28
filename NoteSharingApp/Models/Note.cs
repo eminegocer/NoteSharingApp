@@ -44,5 +44,8 @@ namespace NoteSharingApp.Models
 
         [MongoDB.Bson.Serialization.Attributes.BsonElement("DownloadCount")]
         public int DownloadCount { get; set; } = 0;
+
+        [BsonElement("LastViewedAt")]
+        public DateTime LastViewedAt { get; set; } = DateTime.UtcNow;
     }
 }

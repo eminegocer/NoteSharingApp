@@ -58,6 +58,9 @@ namespace NoteSharingApp.Models
         [BsonElement("SharedNotes")] // Yeni eklenen alan
         public List<ObjectId> SharedNotes { get; set; } = new List<ObjectId>(); // Kullanıcının paylaştığı notların ID'leri
 
+        [BsonElement("VisitedNotes")] // Yeni eklenen alan
+        public List<VisitedNote> VisitedNotes { get; set; } = new List<VisitedNote>(); // Kullanıcının paylaştığı notların ID'leri
+
     }
 
 }

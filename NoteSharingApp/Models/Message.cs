@@ -28,6 +28,7 @@ namespace NoteSharingApp.Models
         {
             CreatedAt = DateTime.UtcNow;
             Id = ObjectId.GenerateNewId();
+
         }
 
         public Message(string senderUsername, string content)

@@ -5,15 +5,15 @@
     <!-- Sol Panel: Sohbetler (1/4) -->
     <aside class="w-1/4 bg-white shadow-lg p-4 m-2 rounded-lg overflow-y-auto flex flex-col gap-6">
         <div>
-            <h2 class="text-xl font-bold text-purple-400 mb-2">Kişisel Sohbetler</h2>
+            <h2 class="text-xl font-bold text-blue-300 mb-2">Kişisel Sohbetler</h2>
             <ul id="personalChatsList" class="space-y-2"></ul>
         </div>
         <div>
-            <h2 class="text-xl font-bold text-blue-400 mb-2">Grup Sohbetleri</h2>
+            <h2 class="text-xl font-bold text-blue-300 mb-2 chat-section-title">Grup Sohbetleri</h2>
             <ul id="groupChatsList" class="space-y-2"></ul>
         </div>
         <div>
-            <h2 class="text-xl font-bold text-green-400 mb-2">Okul Grupları</h2>
+            <h2 class="text-xl font-bold text-blue-300 mb-2 chat-section-title">Okul Toplulukları</h2>
             <ul id="schoolGroupsList" class="space-y-2"></ul>
         </div>
     </aside>
@@ -26,8 +26,8 @@
     <!-- Sağ Panel: Yeni Sohbet ve Arama (1/4) -->
     <aside class="w-1/4 bg-white shadow-lg p-4 m-2 rounded-lg overflow-y-auto flex flex-col gap-6">
         <div class="flex items-center gap-2 mb-4">
-            <span class="text-2xl text-purple-400"><i class="fas fa-comments"></i></span>
-            <h2 class="text-xl font-bold text-purple-400">Yeni Sohbet</h2>
+            <span class="text-2xl text-blue-400"><i class="fas fa-comments"></i></span>
+            <h2 class="text-xl font-bold text-blue-400">Yeni Sohbet</h2>
         </div>
         <div class="mb-6">
             <label class="block text-sm font-semibold mb-1">Kişisel Sohbet</label>
@@ -35,12 +35,12 @@
                 <input id="newPersonalChatUser" type="text" class="w-full border rounded px-3 py-2 mb-2" placeholder="Kullanıcı adı girin..." autocomplete="off">
                 <ul id="personalUserResults" class="absolute left-0 right-0 bg-white border rounded shadow z-10 mt-1 hidden max-h-40 overflow-y-auto"></ul>
             </div>
-            <button id="startPersonalChatBtn" class="w-full btn-pastel-mor py-2 rounded font-semibold flex items-center justify-center gap-2"><i class="fas fa-user-plus"></i> Kişisel Sohbet Başlat</button>
+            <button id="startPersonalChatBtn" class="w-full btn-pastel-mor py-2 rounded font-semibold flex items-center justify-center gap-2 text-blue-600"><i class="fas fa-user-plus"></i> Kişisel Sohbet Başlat</button>
         </div>
         <div class="mb-6">
             <label class="block text-sm font-semibold mb-1">Grup Ara</label>
             <input id="searchGroupInput" type="text" class="w-full border rounded px-3 py-2 mb-2" placeholder="Bölüm adı veya okul adı girin...">
-            <button id="searchGroupBtn" class="w-full btn-pastel-mor py-2 rounded font-semibold flex items-center justify-center gap-2"><i class="fas fa-search"></i> Okul/Bölüm Ara</button>
+            <button id="searchGroupBtn" class="w-full btn-pastel-mor py-2 rounded font-semibold flex items-center justify-center gap-2 text-blue-600"><i class="fas fa-search"></i> Okul/Bölüm Ara</button>
             <ul id="searchGroupResults" class="mt-2 space-y-2"></ul>
         </div>
         <div class="relative mb-6">
@@ -52,7 +52,7 @@
                 <label class="block text-xs font-semibold text-[#a78bfa] mb-1">Seçilen Kişiler</label>
                 <div id="groupUserList" class="flex flex-wrap gap-2"></div>
             </div>
-            <button id="createGroupBtn" class="w-full btn-pastel-mor py-2 rounded font-semibold flex items-center justify-center gap-2 mt-2"><i class="fas fa-users"></i> Grup Oluştur</button>
+            <button id="createGroupBtn" class="w-full btn-pastel-mor py-2 rounded font-semibold flex items-center justify-center gap-2 mt-2 text-blue-600"><i class="fas fa-users"></i> Grup Oluştur</button>
         </div>
     </aside>
 </div>
@@ -66,7 +66,7 @@
                 .then(users => {
                     const list = document.getElementById('personalChatsList');
                     if (users.length) {
-                        list.innerHTML = users.map(u => `<li class='p-2 bg-purple-50 rounded cursor-pointer hover:bg-purple-100' data-username='${u}'><i class='fas fa-user-circle text-purple-400 mr-2'></i>${u}</li>`).join('');
+                        list.innerHTML = users.map(u => `<li class='p-2 bg-[#e3f0fb] rounded cursor-pointer hover:bg-[#a3c9dd]' data-username='${u}'><i class='fas fa-user-circle text-blue-400 mr-2'></i>${u}</li>`).join('');
                         Array.from(list.children).forEach(li => {
                             li.onclick = function() {
                                 try {
@@ -93,7 +93,7 @@
                 .then(groups => {
                     const list = document.getElementById('groupChatsList');
                     if (groups.length) {
-                        list.innerHTML = groups.map(g => `<li class='p-2 bg-blue-50 rounded cursor-pointer hover:bg-blue-100' data-groupid='${g.id}' data-groupname='${g.groupName}'><i class='fas fa-users text-blue-400 mr-2'></i>${g.groupName}</li>`).join('');
+                        list.innerHTML = groups.map(g => `<li class='p-2 bg-[#e3f0fb] rounded cursor-pointer hover:bg-[#a3c9dd]' data-groupid='${g.id}' data-groupname='${g.groupName}'><i class='fas fa-users text-blue-400 mr-2'></i>${g.groupName}</li>`).join('');
                         Array.from(list.children).forEach(li => {
                             li.onclick = function() {
                                 try {
@@ -121,7 +121,7 @@
                 .then(groups => {
                     const list = document.getElementById('schoolGroupsList');
                     if (groups.length) {
-                        list.innerHTML = groups.map(g => `<li class='p-2 bg-green-50 rounded cursor-pointer hover:bg-green-100' data-groupid='${g.id}' data-groupname='${g.groupName}'><i class='fas fa-school text-green-400 mr-2'></i>${g.groupName}</li>`).join('');
+                        list.innerHTML = groups.map(g => `<li class='p-2 bg-[#e3f0fb] rounded cursor-pointer hover:bg-[#a3c9dd]' data-groupid='${g.id}' data-groupname='${g.groupName}'><i class='fas fa-school text-blue-400 mr-2'></i>${g.groupName}</li>`).join('');
                         Array.from(list.children).forEach(li => {
                             li.onclick = function() {
                                 try {
@@ -234,7 +234,7 @@
                 });
             }
             if (!window.currentUsername) {
-                fetch('/api/user/current').then(r => r.json()).then(u => {
+                fetch('/Chat/CurrentUser').then(r => r.json()).then(u => {
                     window.currentUsername = u.userName;
                     doLoad();
                 });
@@ -297,7 +297,7 @@
                 });
             }
             if (!window.currentUsername) {
-                fetch('/api/user/current').then(r => r.json()).then(u => {
+                fetch('/Chat/CurrentUser').then(r => r.json()).then(u => {
                     window.currentUsername = u.userName;
                     doLoad();
                 });
@@ -375,7 +375,7 @@
                     });
                 }
                 if (!window.currentUsername) {
-                    fetch('/api/user/current').then(r => r.json()).then(u => {
+                    fetch('/Chat/CurrentUser').then(r => r.json()).then(u => {
                         window.currentUsername = u.userName;
                         uploadAndSend();
                     });
@@ -424,7 +424,7 @@
                         if (!users.length) {
                             userResults.innerHTML = '<li class="p-2 text-gray-400">Kullanıcı bulunamadı.</li>';
                         } else {
-                            userResults.innerHTML = users.map(u => `<li class='p-2 hover:bg-purple-100 cursor-pointer flex items-center gap-2' data-username='${u.username}'><i class='fas fa-user text-purple-400'></i><span>${u.username}</span></li>`).join('');
+                            userResults.innerHTML = users.map(u => `<li class='p-2 hover:bg-[#a3c9dd] cursor-pointer flex items-center gap-2' data-username='${u.username}'><i class='fas fa-user text-blue-400'></i><span>${u.username}</span></li>`).join('');
                             Array.from(userResults.children).forEach(li => {
                                 li.onclick = function() {
                                     userInput.value = this.getAttribute('data-username');
@@ -474,7 +474,7 @@
                         if (!filtered.length) {
                             groupUserResults.innerHTML = '<li class="p-2 text-gray-400">Kullanıcı bulunamadı.</li>';
                         } else {
-                            groupUserResults.innerHTML = filtered.map(u => `<li class='p-2 hover:bg-purple-100 cursor-pointer flex items-center gap-2' data-username='${u.username}'><i class='fas fa-user text-purple-400'></i><span>${u.username}</span></li>`).join('');
+                            groupUserResults.innerHTML = filtered.map(u => `<li class='p-2 hover:bg-[#a3c9dd] cursor-pointer flex items-center gap-2' data-username='${u.username}'><i class='fas fa-user text-blue-400'></i><span>${u.username}</span></li>`).join('');
                             Array.from(groupUserResults.children).forEach(li => {
                                 li.onclick = function() {
                                     const username = this.getAttribute('data-username');
@@ -550,7 +550,7 @@
                         if (!groups.length) {
                             searchGroupResults.innerHTML = '<li class="text-gray-400">Sonuç bulunamadı.</li>';
                         } else {
-                            searchGroupResults.innerHTML = groups.map(g => `<li class='p-2 bg-blue-50 rounded cursor-pointer hover:bg-blue-100' data-groupid='${g.id}' data-groupname='${g.groupName}'><i class='fas fa-users text-blue-400 mr-2'></i>${g.groupName}</li>`).join('');
+                            searchGroupResults.innerHTML = groups.map(g => `<li class='p-2 bg-[#e3f0fb] rounded cursor-pointer hover:bg-[#a3c9dd]' data-groupid='${g.id}' data-groupname='${g.groupName}'><i class='fas fa-users text-blue-400 mr-2'></i>${g.groupName}</li>`).join('');
                             Array.from(searchGroupResults.children).forEach(li => {
                                 li.onclick = function() {
                                     handleGroupSuggestionClick(this.getAttribute('data-groupid'), this.getAttribute('data-groupname'));
@@ -580,7 +580,7 @@
                     // Yeni grup otomatik aç
                     if (data.groupId && data.groupName) {
                         if (!window.currentUsername) {
-                            fetch('/api/user/current').then(r => r.json()).then(u => {
+                            fetch('/Chat/CurrentUser').then(r => r.json()).then(u => {
                                 window.currentUsername = u.userName;
                                 window.loadGroupChat(data.groupId, data.groupName);
                             });
@@ -676,41 +676,60 @@
 
 <style>
     .btn-pastel-mor {
-        background-color:rgb(231, 209, 252) !important;
-        color: #6d3fa9 !important;
+        background-color: #dbeafe !important;
+        color: #2563eb !important;
         font-weight: 600;
-        transition: background-color 0.3s, color 0.3s;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px 0 rgba(37,99,235,0.07);
+        border: none;
+        transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
     }
     .btn-pastel-mor:hover {
-        background-color: #b799d6 !important;
-        color: #fff !important;
+        background-color: #a3c9dd !important;
+        color: #2C5F7D !important;
+        box-shadow: 0 4px 16px 0 rgba(37,99,235,0.13);
     }
+
     .group-user-tag {
-      background: #f3e8ff;
-      color: #7c3aed;
-      border-radius: 9999px;
-      padding: 0.25rem 0.75rem;
-      font-weight: 600;
-      font-size: 0.95rem;
-      display: inline-flex;
-      align-items: center;
-      margin-right: 0.5rem;
-      margin-bottom: 0.3rem;
-      margin-top: 0.2rem;
+        background: #e0f2fe;
+        color: #2563eb;
+        border-radius: 9999px;
+        padding: 0.25rem 0.75rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: inline-flex;
+        align-items: center;
+        margin-right: 0.5rem;
+        margin-bottom: 0.3rem;
+        margin-top: 0.2rem;
     }
-    .group-user-tag i {
-      margin-right: 0.3rem;
+
+        .group-user-tag i {
+            margin-right: 0.3rem;
+            color: #60a5fa;
+        }
+
+        .group-user-tag button {
+            background: none;
+            border: none;
+            color: #60a5fa;
+            margin-left: 0.3rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+            .group-user-tag button:hover {
+                color: #2563eb;
+            }
+
+    .text-purple-400, .text-[#a78bfa], .text-[#7c3aed], .text-[#6d3fa9] {
+        color: #2563eb !important;
     }
-    .group-user-tag button {
-      background: none;
-      border: none;
-      color: #a78bfa;
-      margin-left: 0.3rem;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: color 0.2s;
-    }
-    .group-user-tag button:hover {
-      color: #ef4444;
+
+    .chat-section-title {
+        pointer-events: none;
+        cursor: default;
+        user-select: text;
     }
 </style> 

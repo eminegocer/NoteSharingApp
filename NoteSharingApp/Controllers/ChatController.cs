@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace NoteSharingApp.Controllers
 {
+    // Sohbet işlemlerini yöneten controller sınıfı
     [Authorize]
     public class ChatController : Controller
     {
@@ -25,6 +26,7 @@ namespace NoteSharingApp.Controllers
             _downloadedNoteRepository = new DownloadedNoteRepository(database);
         }
 
+        // İki kullanıcı arasında yeni bir sohbet oluşturur veya mevcut sohbeti döndürür
         [HttpPost]
         public IActionResult AddChatDb(string userName)
         {
@@ -75,6 +77,7 @@ namespace NoteSharingApp.Controllers
             });
         }
 
+        // Kullanıcı arama işlemini gerçekleştirir
         [HttpGet]
         public async Task<IActionResult> SearchUsers(string searchTerm)
         {
@@ -95,6 +98,7 @@ namespace NoteSharingApp.Controllers
             return Json(users);
         }
 
+        // İki kullanıcı arasında özel sohbet başlatır
         [HttpPost]
         public async Task<IActionResult> StartPersonalChat([FromBody] StartChatRequest request)
         {
@@ -126,6 +130,7 @@ namespace NoteSharingApp.Controllers
             public string Username { get; set; }
         }
 
+        // Sohbet dosyası yükleme işlemini gerçekleştirir
         [HttpPost]
         public async Task<IActionResult> UploadChatFile(IFormFile file)
         {
@@ -170,6 +175,7 @@ namespace NoteSharingApp.Controllers
             }
         }
 
+        // Belirli bir kullanıcı ile olan sohbet görünümünü döndürür
         public async Task<IActionResult> ChatView(string targetUsername)
         {
             try
@@ -218,7 +224,7 @@ namespace NoteSharingApp.Controllers
             }
         }
 
-        // Yeni metot: Ana sayfa için sohbet kullanıcılarını yükle
+        // Ana sayfa için sohbet kullanıcılarını getirir
         public async Task<IActionResult> GetChatUsersForHomePage()
         {
             if (!User.Identity.IsAuthenticated)
@@ -243,6 +249,7 @@ namespace NoteSharingApp.Controllers
             return Json(uniqueChats);
         }
 
+        // Kullanıcıyı bir gruba ekler
         [HttpPost]
         public async Task<IActionResult> JoinGroup(string groupId)
         {
@@ -268,6 +275,7 @@ namespace NoteSharingApp.Controllers
             return Json(new { success = true, message = "Gruba başarıyla katıldınız." });
         }
 
+        // Grup arama işlemini gerçekleştirir
         [HttpGet]
         public async Task<IActionResult> GetGroup(string searchTerm)
         {
@@ -305,6 +313,7 @@ namespace NoteSharingApp.Controllers
             public string GroupId { get; set; }
         }
 
+        // Kullanıcıyı bir okul grubuna ekler
         [HttpPost]
         public async Task<IActionResult> JoinSchoolGroup([FromBody] GroupJoinRequest model)
         {
@@ -362,6 +371,7 @@ namespace NoteSharingApp.Controllers
             }
         }
 
+        // Kullanıcının katıldığı okul gruplarını getirir
         [HttpGet]
         public async Task<IActionResult> GetUserSchoolGroups()
         {
@@ -399,6 +409,61 @@ namespace NoteSharingApp.Controllers
             }
         }
 
+        // İki kullanıcı arasında özel mesaj gönderir
+        [HttpPost]
+        public async Task<IActionResult> SendPersonalMessage([FromBody] PersonalMessageDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.SenderUsername) || string.IsNullOrWhiteSpace(dto.TargetUsername) || string.IsNullOrWhiteSpace(dto.Content))
+                return Json(new { success = false, message = "Eksik parametre." });
+
+            var sender = await _database.Users.Find(u => u.UserName == dto.SenderUsername).FirstOrDefaultAsync();
+            var receiver = await _database.Users.Find(u => u.UserName == dto.TargetUsername).FirstOrDefaultAsync();
+
+            if (sender == null || receiver == null)
+                return Json(new { success = false, message = "Kullanıcı bulunamadı." });
+
+            var chat = await _database.Chats
+                .Find(c => (c.SenderUsername == dto.SenderUsername && c.ReceiverUsername == dto.TargetUsername) ||
+                           (c.SenderUsername == dto.TargetUsername && c.ReceiverUsername == dto.SenderUsername))
+                .FirstOrDefaultAsync();
+
+            if (chat == null)
+            {
+                chat = new Chat
+                {
+                    UsersId = new List<ObjectId> { sender.UserId, receiver.UserId },
+                    SenderUsername = dto.SenderUsername,
+                    ReceiverUsername = dto.TargetUsername,
+                    Messages = new List<Message>(),
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _database.Chats.InsertOneAsync(chat);
+            }
+
+            var message = new Message
+            {
+                SenderUsername = dto.SenderUsername,
+                Content = dto.Content,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            if (chat.Messages == null)
+                chat.Messages = new List<Message>();
+            chat.Messages.Add(message);
+
+            await _database.Chats.ReplaceOneAsync(c => c.Id == chat.Id, chat);
+
+            return Json(new { success = true, message = "Mesaj gönderildi." });
+        }
+
+        public class PersonalMessageDto
+        {
+            public string SenderUsername { get; set; }
+            public string TargetUsername { get; set; }
+            public string Content { get; set; }
+        }
+
+        // Grup mesajlarını getirir
         [HttpGet]
         public async Task<IActionResult> GetGroupMessages(string groupId)
         {
@@ -457,6 +522,7 @@ namespace NoteSharingApp.Controllers
             }
         }
 
+        // Kullanıcının katıldığı grupları getirir
         [HttpGet]
         public async Task<IActionResult> GetUserGroups()
         {
@@ -492,6 +558,7 @@ namespace NoteSharingApp.Controllers
             }
         }
 
+        // Grup dosyası yükleme işlemini gerçekleştirir
         [HttpPost]
         public async Task<IActionResult> UploadGroupFile(IFormFile file)
         {
@@ -530,6 +597,7 @@ namespace NoteSharingApp.Controllers
             }
         }
 
+        // Not indirme işlemini takip eder ve kaydeder
         [HttpPost]
         public async Task<IActionResult> TrackDownload(string noteId, string source)
         {
@@ -593,6 +661,7 @@ namespace NoteSharingApp.Controllers
             return Json(new { success = true });
         }
 
+        // Grup mesajı gönderme işlemini gerçekleştirir
         [HttpPost]
         public async Task<IActionResult> SendGroupMessage([FromBody] GroupMessageRequest request)
         {
@@ -654,12 +723,14 @@ namespace NoteSharingApp.Controllers
             public string FileUrl { get; set; }
         }
 
+        // Ana sayfa görünümünü döndürür
         [HttpGet]
         public IActionResult Index()
         {
             return View();
         }
 
+        // Yeni bir grup oluşturur
         public class GroupCreationModel
         {
             public string GroupName { get; set; }
@@ -719,8 +790,9 @@ namespace NoteSharingApp.Controllers
 
                 await _database.Groups.InsertOneAsync(group);
 
-                return Json(new { 
-                    success = true, 
+                return Json(new
+                {
+                    success = true,
                     message = "Grup başarıyla oluşturuldu.",
                     groupId = group.Id.ToString(),
                     groupName = group.GroupName
@@ -730,6 +802,23 @@ namespace NoteSharingApp.Controllers
             {
                 return Json(new { success = false, message = "Grup oluşturulurken bir hata oluştu." });
             }
+        }
+
+        // Mevcut kullanıcı bilgilerini döndürür
+        [HttpGet]
+        public IActionResult CurrentUser()
+        {
+            if (!User.Identity.IsAuthenticated)
+                return Unauthorized();
+
+            var username = User.Identity.Name;
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            return Json(new
+            {
+                userName = username,
+                userId = userId
+            });
         }
     }
 }

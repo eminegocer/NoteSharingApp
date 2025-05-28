@@ -2,18 +2,19 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using NoteSharingApp.Repository;
 using NoteSharingApp.Hubs;
 using MongoDB.Driver;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.SignalR;
+using NoteSharingApp.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.WebHost.UseUrls("http://0.0.0.0:5000");
-// Add services to the container.
+
 // 1. CONTROLLERS
 builder.Services.AddControllersWithViews();
 builder.Services.AddControllers(); // API için gerekli
@@ -21,12 +22,11 @@ builder.Services.AddControllers(); // API için gerekli
 // IConfiguration servisini ekle
 builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
 
-// CORS politikasını ekle
 // 2. CORS — mobil ve web için tek bir genel policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-    { 
+    {
         policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader()
@@ -34,32 +34,25 @@ builder.Services.AddCors(options =>
     });
 });
 
-// SignalR servisini ekle
 // 3. SIGNALR
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
 });
 
-// Configure file upload settings
 // 4. FILE UPLOAD LİMİT
 builder.Services.Configure<IISServerOptions>(options =>
 {
     options.MaxRequestBodySize = 30 * 1024 * 1024; // 30 MB
 });
-
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 30 * 1024 * 1024; // 30 MB
-    options.MultipartBodyLengthLimit = 30 * 1024 * 1024;
 });
 
 // 5. MONGODB
 var connectionString = builder.Configuration.GetConnectionString("MongoDb");
-
-// MongoDB için bağımlılığı ekle
-builder.Services.AddSingleton<IMongoClient>(s =>
-    new MongoClient(connectionString));
+builder.Services.AddSingleton<IMongoClient>(s => new MongoClient(connectionString));
 builder.Services.AddSingleton<DatabaseContext>();
 try
 {
@@ -76,36 +69,42 @@ catch (Exception ex)
 // 6. REPOSITORY
 builder.Services.AddScoped<CategoryRepository>();
 
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+// 7. AUTH - SADECE JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(options =>
+{
+    options.LoginPath = "/Home/Login";
+    options.LogoutPath = "/Home/Logout";
+    options.AccessDeniedPath = "/Home/AccessDenied";
+    options.Cookie.Name = "NoteSharingApp.Auth";
+    options.Cookie.HttpOnly = true;
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.SlidingExpiration = true;
+})
+.AddJwtBearer("Bearer", options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "NoteSharingApp",
-            ValidAudience = "NoteSharingAppMobile",
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MySuperStrongSecretKeyForJWTAuth123456789"))
-        };
-    });
-builder.Services.AddAuthentication("Cookies");
- // 7. AUTH
- builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-     .AddCookie(options =>
-     {
-         options.LoginPath = "/Account/Login";  // Kullanıcı giriş sayfası
-         options.LoginPath = "/Account/Login";
-         options.LogoutPath = "/Account/Logout";
-     });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = "NoteSharingApp",
+        ValidAudience = "NoteSharingAppMobile",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MySuperStrongSecretKeyForJWTAuth123456789"))
+    };
+});
 
 builder.Services.AddAuthorization();
 builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 // 8. MIDDLEWARE PIPELINE
 if (app.Environment.IsDevelopment())
 {
@@ -114,12 +113,8 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-
-
-// AUTH — JWT
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -128,7 +123,6 @@ app.UseRouting();
 
 // CORS middleware'ini ekle
 app.UseCors("AllowAll");
-app.UseCors("AllowAll"); // CORS burada aktifleşiyor
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -141,6 +135,5 @@ app.UseEndpoints(endpoints =>
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}");
 });
-
 
 app.Run();

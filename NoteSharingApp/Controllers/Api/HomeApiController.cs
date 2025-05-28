@@ -48,16 +48,7 @@ public class HomeApiController : ControllerBase
             new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanıcı")
         };
 
-        // Cookie kimlik doğrulama için - Web uygulaması için
-        var identity = new ClaimsIdentity(claims, "Cookies");
-        var principal = new ClaimsPrincipal(identity);
-
-        await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
-        {
-            IsPersistent = true,
-            ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-        });
-
+  
         // JWT token üretimi - Mobil uygulama için
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MySuperStrongSecretKeyForJWTAuth123456789")); // En az 32 karakter
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

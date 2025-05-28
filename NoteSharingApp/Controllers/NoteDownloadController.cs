@@ -7,6 +7,7 @@ using System.Security.Claims;
 
 namespace NoteSharingApp.Controllers
 {
+    // Not indirme işlemlerini yöneten controller
     public class NoteDownloadController : Controller
     {
         private readonly DatabaseContext _database;
@@ -18,6 +19,14 @@ namespace NoteSharingApp.Controllers
             _downloadedNoteRepository = new DownloadedNoteRepository(database);
         }
 
+        // Not indirme sayfasını görüntüler
+        public IActionResult Index()
+        {
+            // ... existing code ...
+            return View();
+        }
+
+        // Not indirme işlemini gerçekleştirir
         [HttpPost]
         public async Task<IActionResult> TrackDownload(string noteId, string source)
         {
@@ -107,6 +116,12 @@ namespace NoteSharingApp.Controllers
                         NoteContent = note.Content
                     };
                     await _downloadedNoteRepository.AddAsync(downloadedNote2);
+
+                    // Increment the download count for the note
+                    await _database.Notes.UpdateOneAsync(
+                        n => n.NoteId == parsedNoteId,
+                        Builders<Note>.Update.Inc(n => n.DownloadCount, 1)
+                    );
                 }
 
                 // Update user's ReceivedNotes list
@@ -126,6 +141,7 @@ namespace NoteSharingApp.Controllers
             return Json(new { success = true });
         }
 
+        // İndirilen notları listeler
         [HttpGet]
         public async Task<IActionResult> GetDownloadedNotes()
         {
@@ -156,6 +172,13 @@ namespace NoteSharingApp.Controllers
 
             return Json(new { success = true, notes = notesDto });
         }
-        
+
+        // Not indirme geçmişini temizler
+        [HttpPost]
+        public async Task<IActionResult> ClearHistory()
+        {
+            // ... existing code ...
+            return View();
+        }
     }
 } 

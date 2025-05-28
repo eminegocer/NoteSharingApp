@@ -1,13 +1,17 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using NoteSharingApp.Models;
 
 namespace NoteSharingApp.Controllers;
 
+// Ana sayfa ve temel sayfa yönlendirmelerini yöneten controller
 public class HomeController : Controller
 {
     private readonly DatabaseContext _dbContext;
@@ -17,6 +21,7 @@ public class HomeController : Controller
         _dbContext = dbContext;
     }
 
+    // Ana sayfayı görüntüler
     public IActionResult Index()
     {
         return View();
@@ -46,18 +51,28 @@ public class HomeController : Controller
                 new Claim(ClaimTypes.Name, _user.UserName ?? "Bilinmeyen Kullanici")
             };
 
-            var identity = new ClaimsIdentity(claims, "Cookies");
-            var principal = new ClaimsPrincipal(identity);
-
-            await HttpContext.SignInAsync("Cookies", principal, new AuthenticationProperties
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var authProperties = new AuthenticationProperties
             {
-                IsPersistent = true, 
-                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7) 
-            });
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30)
+            };
+
+            await HttpContext.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(claimsIdentity),
+                authProperties);
 
             return RedirectToAction("HomePage", "Notes");
         }
         return View();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return RedirectToAction("Login");
     }
 
     [HttpGet]
@@ -98,11 +113,13 @@ public class HomeController : Controller
         return View(user);
     }
 
+    // Gizlilik politikası sayfasını görüntüler
     public IActionResult Privacy()
     {
         return View();
     }
 
+    // Hata sayfasını görüntüler
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
